@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/vegaprotocol/snapshot-testing/tools"
+	"go.uber.org/zap"
 )
 
 type rawStatistics struct {
@@ -147,4 +150,57 @@ func getSnapshots(restURL string) ([]Snapshot, error) {
 	}
 
 	return response, nil
+}
+
+func isRESTEndpointHealthy(logger *zap.Logger, networkHeadHeight uint64, restURL string) bool {
+	logger.Sugar().Infof("Fetching statistics from %s", restURL)
+	statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
+		return getStatistics(restURL)
+	})
+
+	if err != nil {
+		logger.Info(fmt.Sprintf("The %s endpoint unhealthy: failed to get statistics endpoint", restURL), zap.Error(err))
+		return false
+	}
+
+	headBlocksDiff := networkHeadHeight - statistics.BlockHeight
+	if statistics.BlockHeight < networkHeadHeight && headBlocksDiff > HealthyBlocksThreshold {
+		logger.Sugar().Infof(
+			"The %s endpoint unhealthy: core height(%d) is %d behind the network head(%d), only %d blocks lag allowed",
+			restURL,
+			statistics.BlockHeight,
+			headBlocksDiff,
+			networkHeadHeight,
+			HealthyBlocksThreshold,
+		)
+		return false
+	}
+
+	if statistics.DataNodeHeight > 0 {
+		blocksDiff := statistics.BlockHeight - statistics.DataNodeHeight
+		if statistics.DataNodeHeight < statistics.BlockHeight && blocksDiff > HealthyBlocksThreshold {
+			logger.Sugar().Infof(
+				"The %s endpoint unhealthy: data node is %d blocks behind core, only %d blocks lag allowed",
+				restURL,
+				blocksDiff,
+				HealthyBlocksThreshold,
+			)
+			return false
+		}
+	}
+
+	timeDiff := statistics.CurrentTime.Sub(statistics.VegaTime)
+	if timeDiff > HealthyTimeThreshold {
+		logger.Sugar().Infof(
+			"The %s endpoint unhealthy: time lag is %s, only %s allowed",
+			restURL,
+			timeDiff.String(),
+			HealthyTimeThreshold.String(),
+		)
+		return false
+	}
+
+	logger.Sugar().Infof("The %s endpoint is healthy", restURL)
+
+	return true
 }

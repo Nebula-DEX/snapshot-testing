@@ -12,7 +12,7 @@ import (
 func main() {
 	mainLogger := logging.CreateLogger(zap.InfoLevel, "./logs/main.log")
 
-	network, err := networkutils.NewNetwork(mainLogger, config.Mainnet, "./")
+	network, err := networkutils.NewNetwork(mainLogger, config.Mainnet, "./workdir")
 	if err != nil {
 		panic(err)
 	}

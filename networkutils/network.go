@@ -36,6 +36,7 @@ type Network struct {
 	workDir string
 
 	healthyRESTEndpoints []string
+	healthyRPCPeers      []string
 	restartSnapshot      *Snapshot
 	vegaBinaryPath       string
 	visorBinaryPath      string
@@ -55,6 +56,39 @@ func NewNetwork(logger *zap.Logger, conf config.Network, workDir string) (*Netwo
 		conf:    conf,
 		workDir: workDir,
 	}, nil
+}
+
+func (n *Network) getHealthyRPCPeers() ([]string, error) {
+	if len(n.healthyRPCPeers) > 0 {
+		return n.healthyRPCPeers, nil
+	}
+
+	n.logger.Info("Looking for a healthy RPC peers")
+
+	networkHeadHeight, err := n.getNetworkHeight()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network height: %w", err)
+	}
+
+	healthyPeers := []string{}
+	for _, rpcPeer := range n.conf.RPCPeers {
+		if len(rpcPeer.CoreREST) < 1 {
+			n.logger.Sugar().Infof("The %s peer does not have core REST assigned. Skipping", rpcPeer.Endpoint)
+			continue
+		}
+		if isRESTEndpointHealthy(n.logger, networkHeadHeight, rpcPeer.CoreREST) {
+			n.logger.Sugar().Infof("The %s RPC peer is healthy", rpcPeer.Endpoint)
+			healthyPeers = append(healthyPeers, rpcPeer.Endpoint)
+		}
+	}
+
+	if len(healthyPeers) < 1 {
+		return nil, fmt.Errorf("no healthy RPC peers found")
+	}
+
+	n.healthyRPCPeers = healthyPeers
+
+	return healthyPeers, nil
 }
 
 func (n *Network) getNetworkHeight() (uint64, error) {
@@ -173,55 +207,9 @@ func (n *Network) getHealthyRESTEndpoints() ([]string, error) {
 
 	healthyNodes := []string{}
 	for _, restURL := range n.conf.DataNodesREST {
-		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
-		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
-			return getStatistics(restURL)
-		})
-
-		if err != nil {
-			n.logger.Info(fmt.Sprintf("The %s endpoint unhealthy: failed to get statistics endpoint", restURL), zap.Error(err))
-			continue
+		if isRESTEndpointHealthy(n.logger, networkHeadHeight, restURL) {
+			healthyNodes = append(healthyNodes, restURL)
 		}
-
-		headBlocksDiff := networkHeadHeight - statistics.BlockHeight
-		if statistics.BlockHeight < networkHeadHeight && headBlocksDiff > HealthyBlocksThreshold {
-			n.logger.Sugar().Infof(
-				"The %s endpoint unhealthy: core height(%d) is %d behind the network head(%d), only %d blocks lag allowed",
-				restURL,
-				statistics.BlockHeight,
-				headBlocksDiff,
-				networkHeadHeight,
-				HealthyBlocksThreshold,
-			)
-			continue
-		}
-
-		if statistics.DataNodeHeight > 0 {
-			blocksDiff := statistics.BlockHeight - statistics.DataNodeHeight
-			if statistics.DataNodeHeight < statistics.BlockHeight && blocksDiff > HealthyBlocksThreshold {
-				n.logger.Sugar().Infof(
-					"The %s endpoint unhealthy: data node is %d blocks behind core, only %d blocks lag allowed",
-					restURL,
-					blocksDiff,
-					HealthyBlocksThreshold,
-				)
-				continue
-			}
-		}
-
-		timeDiff := statistics.CurrentTime.Sub(statistics.VegaTime)
-		if timeDiff > HealthyTimeThreshold {
-			n.logger.Sugar().Infof(
-				"The %s endpoint unhealthy: time lag is %s, only %s allowed",
-				restURL,
-				timeDiff.String(),
-				HealthyTimeThreshold.String(),
-			)
-			continue
-		}
-
-		n.logger.Sugar().Infof("The %s endpoint is healthy", restURL)
-		healthyNodes = append(healthyNodes, restURL)
 	}
 
 	if len(healthyNodes) == 0 {
@@ -417,6 +405,7 @@ func (n *Network) initLocally(force bool) (*LocalNodeDetails, error) {
 
 	visorInitCommand := []string{
 		n.visorBinaryPath, "init",
+		"--with-data-node",
 		"--home", visorHome,
 	}
 	vegaInitCommand := []string{
@@ -485,19 +474,51 @@ func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chain id: %d", err)
 	}
+
+	rpcPeers, err := n.getHealthyRPCPeers()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get RPC peers: %w", err)
+	}
+
+	appVersion, err := n.getAppVersion()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get app version: %w", err)
+	}
+
+	overrideVersion := "no"
+	if n.conf.BinaryVersionOverride != "" {
+		overrideVersion = n.conf.BinaryVersionOverride
+	}
+
 	n.logger.Sugar().Info("")
-	n.logger.Sugar().Info("==================================================")
-	n.logger.Sugar().Info("Initializing local node with the following details")
-	n.logger.Sugar().Info("==================================================")
+	n.logger.Sugar().Info("===================================================")
+	n.logger.Sugar().Info("Initializing local node with the following details:")
+	n.logger.Sugar().Info("===================================================")
 	n.logger.Sugar().Infof("Network head height: %d", headHeight)
 	n.logger.Sugar().Infof("Network Chain ID: %s", chainId)
 	n.logger.Sugar().Infof("VegaPath: %s", vegaPath)
 	n.logger.Sugar().Infof("VisorPath: %s", visorPath)
 	n.logger.Sugar().Infof("Snapshot for restart: %#v", restartSnapshot)
+	n.logger.Sugar().Infof("RPCPeers: %v", rpcPeers)
+	n.logger.Sugar().Infof("Bootstrap peers: %v", n.conf.BootstrapPeers)
+	n.logger.Sugar().Infof("Genesis file: %v", n.conf.GenesisURL)
+	n.logger.Sugar().Infof("Seeds: %v", n.conf.Seeds)
+	n.logger.Sugar().Infof("Network version: %s", appVersion)
+	n.logger.Sugar().Infof("Override release: %s", overrideVersion)
 
 	localNodeDetails, err := n.initLocally(true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize node locally: %w", err)
+	}
+
+	n.logger.Info("Updating vegavisor config")
+	if err := updateVisorConfig(
+		localNodeDetails.VisorHome,
+		localNodeDetails.VegaBin,
+		localNodeDetails.VegaHome,
+		localNodeDetails.TendermintHome,
+		n.workDir); err != nil {
+		return nil, fmt.Errorf("failed to update vegavisor config: %w", err)
 	}
 
 	return localNodeDetails, nil
