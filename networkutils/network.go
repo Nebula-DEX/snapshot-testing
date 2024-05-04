@@ -262,7 +262,7 @@ func (n *Network) binaryArtifactURL(kind string) (string, error) {
 	return url, nil
 }
 
-func (n *Network) downloadBinary(kind string, force bool, cleanup bool) (string, error) {
+func (n *Network) DownloadFile(kind string, force bool, cleanup bool) (string, error) {
 	n.logger.Sugar().Infof("Preparing URL for %s binary", kind)
 
 	zipOutputFile := filepath.Join(n.workDir, fmt.Sprintf("%s.zip", kind))
@@ -279,7 +279,7 @@ func (n *Network) downloadBinary(kind string, force bool, cleanup bool) (string,
 	}
 
 	n.logger.Sugar().Infof("Downloading the %s file", url)
-	if err := tools.DownloadBinary(url, zipOutputFile); err != nil {
+	if err := tools.DownloadFile(url, zipOutputFile); err != nil {
 		return "", fmt.Errorf("failed to download %s binary: %w", kind, err)
 	}
 
@@ -308,7 +308,7 @@ func (n *Network) downloadBinary(kind string, force bool, cleanup bool) (string,
 }
 
 func (n *Network) downloadVegaBinary() (string, error) {
-	path, err := n.downloadBinary("vega", true, true)
+	path, err := n.DownloadFile("vega", true, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to download vega binary: %w", err)
 	}
@@ -318,7 +318,7 @@ func (n *Network) downloadVegaBinary() (string, error) {
 }
 
 func (n *Network) downloadVegaVisorBinary() (string, error) {
-	path, err := n.downloadBinary("visor", true, true)
+	path, err := n.DownloadFile("visor", true, true)
 	if err != nil {
 		return "", fmt.Errorf("failed to download visor binary: %w", err)
 	}
@@ -449,6 +449,18 @@ func (n *Network) initLocally(force bool) (*LocalNodeDetails, error) {
 	}, nil
 }
 
+func (n *Network) downloadGenesis(tendermintHome string) error {
+	genesisPath := filepath.Join(tendermintHome, "config", "genesis.json")
+
+	n.logger.Sugar().Infof("Downloading genesis file from %s to %s", n.conf.GenesisURL, genesisPath)
+	if err := tools.DownloadFile(n.conf.GenesisURL, genesisPath); err != nil {
+		return fmt.Errorf("failed to download genesis: %w", err)
+	}
+	n.logger.Info("Genesis successfully downloaded")
+
+	return nil
+}
+
 func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 	vegaPath, err := n.downloadVegaBinary()
 	if err != nil {
@@ -511,6 +523,10 @@ func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 		return nil, fmt.Errorf("failed to initialize node locally: %w", err)
 	}
 
+	if err := n.downloadGenesis(localNodeDetails.TendermintHome); err != nil {
+		return nil, fmt.Errorf("failed to download genesis: %w", err)
+	}
+
 	n.logger.Info("Updating vegavisor config")
 	if err := updateVisorConfig(
 		localNodeDetails.VisorHome,
@@ -519,6 +535,26 @@ func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 		localNodeDetails.TendermintHome,
 		n.workDir); err != nil {
 		return nil, fmt.Errorf("failed to update vegavisor config: %w", err)
+	}
+
+	n.logger.Info("Updating vega config")
+	if err := updateVegaConfig(localNodeDetails.VegaHome, n.workDir, *restartSnapshot); err != nil {
+		return nil, fmt.Errorf("failed to update vega config: %w", err)
+	}
+
+	n.logger.Info("Updating tendermint config")
+	if err := updateTendermintConfig(
+		localNodeDetails.TendermintHome,
+		rpcPeers,
+		n.conf.Seeds,
+		*restartSnapshot,
+	); err != nil {
+		return nil, fmt.Errorf("failed to update tendermint config: %w", err)
+	}
+
+	n.logger.Info("Updating data-node config")
+	if err := updateDataNodeConfig(localNodeDetails.VegaHome, n.conf.BootstrapPeers); err != nil {
+		return nil, fmt.Errorf("failed to update data-node config: %w", err)
 	}
 
 	return localNodeDetails, nil

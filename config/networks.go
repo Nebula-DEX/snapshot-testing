@@ -44,6 +44,9 @@ var (
 			{CoreREST: "https://api1.vega.community", Endpoint: "api1.vega.community:26657"},
 			{CoreREST: "https://api2.vega.community", Endpoint: "api2.vega.community:26657"},
 			{CoreREST: "https://api3.vega.community", Endpoint: "api3.vega.community:26657"},
+			{CoreREST: "https://be0.vega.community", Endpoint: "be0.vega.community:26657"},
+			{CoreREST: "https://be1.vega.community", Endpoint: "be1.vega.community:26657"},
+			{CoreREST: "https://be3.vega.community", Endpoint: "be3.vega.community:26657"},
 		},
 		Seeds: []string{
 			"b0db58f5651c85385f588bd5238b42bedbe57073@13.125.55.240:26656",

@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func DownloadBinary(url string, outputFile string) error {
+func DownloadFile(url string, outputFile string) error {
 	resp, err := http.Get(url)
 	if err != nil {
 		return fmt.Errorf("failed to send get http request: %w", err)

@@ -54,6 +54,7 @@ func (p *postgresql) Stderr(ctx context.Context) (io.ReadCloser, error) {
 // Start implements Component.
 func (p *postgresql) Start(ctx context.Context) error {
 	err := p.dockerClient.RunContainer(ctx, config.PostgresqlConfig)
+	p.containerName = config.PostgresqlConfig.Name
 	if err != nil {
 		return fmt.Errorf("failed to start postgresql component: %w", err)
 	}
