@@ -4,59 +4,25 @@ import (
 	"fmt"
 
 	"github.com/vegaprotocol/snapshot-testing/config"
+	"github.com/vegaprotocol/snapshot-testing/logging"
 	"github.com/vegaprotocol/snapshot-testing/networkutils"
 	"go.uber.org/zap"
 )
 
 func main() {
-	logger, err := zap.NewProduction()
+	mainLogger := logging.CreateLogger(zap.InfoLevel, "./logs/main.log")
+
+	network, err := networkutils.NewNetwork(mainLogger, config.Mainnet, "./")
 	if err != nil {
 		panic(err)
 	}
 
-	network, err := networkutils.NewNetwork(logger, config.Mainnet, "./")
+	details, err := network.SetupLocalNode()
 	if err != nil {
 		panic(err)
 	}
 
-	endpoints, err := network.GetHealthyRESTEndpoints()
-	if err != nil {
-		panic(err)
-	}
-
-	appVersion, err := network.GetAppVersion()
-	if err != nil {
-		panic(err)
-	}
-
-	// vegaURL, err := network.VegaBinaryURL()
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// visorURL, err := network.VisorBinaryURL()
-	// if err != nil {
-	// 	panic(err)
-	// }
-
-	fmt.Printf("Endpoints: %v\n", endpoints)
-	fmt.Printf("App version: %v\n", appVersion)
-	vegaPath, err := network.DownloadVegaBinary()
-	if err != nil {
-		panic(err)
-	}
-	visorPath, err := network.DownloadVegaVisorBinary()
-	if err != nil {
-		panic(err)
-	}
-	restartSnapshot, err := network.GetRestartSnapshot()
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("Vega path: %s\n", vegaPath)
-	fmt.Printf("Visor path: %s\n", visorPath)
-
-	fmt.Printf("Restart snapshot: %#v\n", restartSnapshot)
+	fmt.Printf("%v", details)
 }
 
 // cli, err := docker.NewClient()
