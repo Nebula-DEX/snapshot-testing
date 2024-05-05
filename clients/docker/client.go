@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -136,6 +137,18 @@ func (c *Client) RunContainer(ctx context.Context, config config.ContainerConfig
 			},
 		}
 		exposedPorts[nat.Port(fmt.Sprintf("%d", k))] = struct{}{}
+	}
+
+	reader, err := c.apiClient.ImagePull(ctx, config.Image, image.PullOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to pull image: %w", err)
+	}
+	defer reader.Close()
+
+	// cli.ImagePull is asynchronous.
+	// The reader needs to be read completely for the pull operation to complete.
+	if _, err := io.Copy(io.Discard, reader); err != nil {
+		return fmt.Errorf("failed to read image pull output: %w", err)
 	}
 
 	resp, err := c.apiClient.ContainerCreate(ctx, &container.Config{

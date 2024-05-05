@@ -48,7 +48,8 @@ func Run(ctx context.Context, pathManager networkutils.PathManager, mainLogger *
 	ticker := time.NewTicker(30 * time.Second)
 
 	for {
-		ticker.Reset(30 * time.Second)
+		// This is just to finish program earlier when any of the component failed
+		ticker.Reset(90 * time.Second)
 		select {
 		case <-ticker.C:
 		case <-ctx.Done():

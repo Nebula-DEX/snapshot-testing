@@ -94,7 +94,7 @@ func (v *visor) Start(ctx context.Context) error {
 	commandContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 
-	postgreSQLWaitContext, psqlWaitCancel := context.WithTimeout(commandContext, 60*time.Second)
+	postgreSQLWaitContext, psqlWaitCancel := context.WithTimeout(commandContext, 120*time.Second)
 	defer psqlWaitCancel()
 	if err := v.waitForPostgreSQL(postgreSQLWaitContext); err != nil {
 		return fmt.Errorf("postgreSQL did not start in 60 seconds: %w", err)
