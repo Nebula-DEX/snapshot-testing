@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/vegaprotocol/snapshot-testing/config"
 	"github.com/vegaprotocol/snapshot-testing/tools"
 )
 
@@ -93,15 +94,15 @@ func updateTendermintConfig(tendermintHome string, rpcPeers []string, seeds []st
 	return nil
 }
 
-func updateDataNodeConfig(vegaHome string, bootstrapPeers []string) error {
+func updateDataNodeConfig(vegaHome string, bootstrapPeers []string, psqlCreds config.PostgreSQLCreds) error {
 	configFilePath := filepath.Join(vegaHome, "config", "data-node", "config.toml")
 	newConfigValues := map[string]interface{}{
 		"SQLStore.RetentionPeriod":                    "standard",
-		"SQLStore.ConnectionConfig.Host":              "localhost",
-		"SQLStore.ConnectionConfig.Port":              5432,
-		"SQLStore.ConnectionConfig.Username":          "vega",
-		"SQLStore.ConnectionConfig.Password":          "vega",
-		"SQLStore.ConnectionConfig.Database":          "vega",
+		"SQLStore.ConnectionConfig.Host":              psqlCreds.Host,
+		"SQLStore.ConnectionConfig.Port":              psqlCreds.Port,
+		"SQLStore.ConnectionConfig.Username":          psqlCreds.User,
+		"SQLStore.ConnectionConfig.Password":          psqlCreds.Pass,
+		"SQLStore.ConnectionConfig.Database":          psqlCreds.DbName,
 		"SQLStore.WipeOnStartup":                      true,
 		"NetworkHistory.Store.BootstrapPeers":         bootstrapPeers,
 		"NetworkHistory.Initialise.MinimumBlockCount": 1000,

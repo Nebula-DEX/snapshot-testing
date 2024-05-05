@@ -1,62 +1,37 @@
 package main
 
-import (
-	"context"
-	"fmt"
-	"time"
-
-	"github.com/vegaprotocol/snapshot-testing/clients/docker"
-	"github.com/vegaprotocol/snapshot-testing/components"
-	"github.com/vegaprotocol/snapshot-testing/config"
-	"github.com/vegaprotocol/snapshot-testing/logging"
-	"github.com/vegaprotocol/snapshot-testing/networkutils"
-	"go.uber.org/zap"
-)
+import "github.com/vegaprotocol/snapshot-testing/cmd"
 
 func main() {
-	mainLogger := logging.CreateLogger(zap.InfoLevel, "./logs/main.log")
+	cmd.Execute()
+	// dockerClient, err := docker.NewClient()
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// pSQLComponent, err := components.NewPostgresql("mainnet", dockerClient)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
-	network, err := networkutils.NewNetwork(mainLogger, config.Mainnet, "./workdir")
-	if err != nil {
-		panic(err)
-	}
+	// // Ensure container is not running
+	// if err := pSQLComponent.Stop(context.TODO()); err != nil {
+	// 	panic(err)
+	// }
 
-	details, err := network.SetupLocalNode()
-	if err != nil {
-		panic(err)
-	}
+	// if err := pSQLComponent.Start(context.TODO()); err != nil {
+	// 	panic(err)
+	// }
 
-	startCommand := fmt.Sprintf("%s run --home %s", details.VisorBin, details.VisorHome)
-	fmt.Println(startCommand)
-
-	dockerClient, err := docker.NewClient()
-	if err != nil {
-		panic(err)
-	}
-	pSQLComponent, err := components.NewPostgresql("mainnet", dockerClient)
-	if err != nil {
-		panic(err)
-	}
-
-	// Ensure container is not running
-	if err := pSQLComponent.Stop(context.TODO()); err != nil {
-		panic(err)
-	}
-
-	if err := pSQLComponent.Start(context.TODO()); err != nil {
-		panic(err)
-	}
-
-	for {
-		time.Sleep(3 * time.Second)
-		psqlHealthy, err := pSQLComponent.Healthy()
-		if err != nil {
-			panic(err)
-		}
-		if !psqlHealthy {
-			return
-		}
-	}
+	// for {
+	// 	time.Sleep(3 * time.Second)
+	// 	psqlHealthy, err := pSQLComponent.Healthy()
+	// 	if err != nil {
+	// 		panic(err)
+	// 	}
+	// 	if !psqlHealthy {
+	// 		return
+	// 	}
+	// }
 }
 
 // cli, err := docker.NewClient()

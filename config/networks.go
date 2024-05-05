@@ -2,32 +2,26 @@ package config
 
 import "fmt"
 
-func (n Network) Validate() error {
-	if len(n.DataNodesREST) == 0 {
-		return fmt.Errorf("no data nodes rest endpoints")
+const (
+	NetworkNameMainnet    string = "mainnet"
+	NetworkNameFairground string = "fairground"
+	NetworkNameStagnet1   string = "stagnet1"
+	NetworkNameDevnet1    string = "devnet1"
+)
+
+func NetworkConfigForEnvironmentName(envName string) (*Network, error) {
+	switch envName {
+	case NetworkNameMainnet:
+		return &Mainnet, nil
+	case NetworkNameFairground:
+		return &Fairground, nil
+	case NetworkNameStagnet1:
+		return &Stagnet1, nil
+	case NetworkNameDevnet1:
+		return &Devnet1, nil
 	}
 
-	if len(n.BootstrapPeers) == 0 {
-		return fmt.Errorf("no bootstrap peers")
-	}
-
-	if len(n.RPCPeers) == 0 {
-		return fmt.Errorf("no rpc peers")
-	}
-
-	if len(n.Seeds) == 0 {
-		return fmt.Errorf("no seeds")
-	}
-
-	if len(n.GenesisURL) == 0 {
-		return fmt.Errorf("no genesis url")
-	}
-
-	if len(n.ArtifactsRepository) == 0 {
-		return fmt.Errorf("empty artifacts repository")
-	}
-
-	return nil
+	return nil, fmt.Errorf("unknown network name: expected one of [mainnet, fairground, stagnet1, devnet1], %s got", envName)
 }
 
 var (

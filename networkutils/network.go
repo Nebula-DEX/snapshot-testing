@@ -22,39 +22,29 @@ const (
 	BinariesFolder = "bins"
 )
 
-type LocalNodeDetails struct {
-	VegaBin        string
-	VisorBin       string
-	VegaHome       string
-	TendermintHome string
-	VisorHome      string
-}
-
 type Network struct {
-	logger  *zap.Logger
-	conf    config.Network
-	workDir string
+	logger      *zap.Logger
+	conf        config.Network
+	pathManager PathManager
 
 	healthyRESTEndpoints []string
 	healthyRPCPeers      []string
 	restartSnapshot      *Snapshot
-	vegaBinaryPath       string
-	visorBinaryPath      string
 	chainId              string
 
 	appVersion string
 	height     uint64
 }
 
-func NewNetwork(logger *zap.Logger, conf config.Network, workDir string) (*Network, error) {
+func NewNetwork(logger *zap.Logger, conf config.Network, pm PathManager) (*Network, error) {
 	if err := conf.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config for network: %w", err)
 	}
 
 	return &Network{
-		logger:  logger,
-		conf:    conf,
-		workDir: workDir,
+		logger:      logger,
+		conf:        conf,
+		pathManager: pm,
 	}, nil
 }
 
@@ -265,7 +255,7 @@ func (n *Network) binaryArtifactURL(kind string) (string, error) {
 func (n *Network) DownloadFile(kind string, force bool, cleanup bool) (string, error) {
 	n.logger.Sugar().Infof("Preparing URL for %s binary", kind)
 
-	zipOutputFile := filepath.Join(n.workDir, fmt.Sprintf("%s.zip", kind))
+	zipOutputFile := filepath.Join(n.pathManager.workDir, fmt.Sprintf("%s.zip", kind))
 	if force {
 		n.logger.Sugar().Infof("Removing old %s binaries", kind)
 		if err := os.RemoveAll(zipOutputFile); err != nil {
@@ -283,7 +273,7 @@ func (n *Network) DownloadFile(kind string, force bool, cleanup bool) (string, e
 		return "", fmt.Errorf("failed to download %s binary: %w", kind, err)
 	}
 
-	binariesPath := filepath.Join(n.workDir, BinariesFolder)
+	binariesPath := n.pathManager.Binaries()
 	n.logger.Sugar().Infof("Extracting downloaded binary to %s", binariesPath)
 
 	if err := os.MkdirAll(binariesPath, os.ModePerm); err != nil {
@@ -307,24 +297,22 @@ func (n *Network) DownloadFile(kind string, force bool, cleanup bool) (string, e
 	return filepath.Join(binariesPath, kind), nil
 }
 
-func (n *Network) downloadVegaBinary() (string, error) {
-	path, err := n.DownloadFile("vega", true, true)
+func (n *Network) downloadVegaBinary() error {
+	_, err := n.DownloadFile("vega", true, true)
 	if err != nil {
-		return "", fmt.Errorf("failed to download vega binary: %w", err)
+		return fmt.Errorf("failed to download vega binary: %w", err)
 	}
 
-	n.vegaBinaryPath = path
-	return path, nil
+	return nil
 }
 
-func (n *Network) downloadVegaVisorBinary() (string, error) {
-	path, err := n.DownloadFile("visor", true, true)
+func (n *Network) downloadVegaVisorBinary() error {
+	_, err := n.DownloadFile("visor", true, true)
 	if err != nil {
-		return "", fmt.Errorf("failed to download visor binary: %w", err)
+		return fmt.Errorf("failed to download visor binary: %w", err)
 	}
 
-	n.visorBinaryPath = path
-	return path, nil
+	return nil
 }
 
 // GetRestartSnapshot select snapshot for tendermint trusted block and height.
@@ -371,82 +359,67 @@ func (n *Network) getRestartSnapshot() (*Snapshot, error) {
 	return nil, fmt.Errorf("no snapshot for restart found")
 }
 
-func (n *Network) initLocally(force bool) (*LocalNodeDetails, error) {
-	if n.vegaBinaryPath == "" {
-		return nil, fmt.Errorf("empty vega binary path")
-	}
-
-	if n.visorBinaryPath == "" {
-		return nil, fmt.Errorf("empty vegavisor binary path")
+func (n *Network) initLocally(force bool) error {
+	if !n.pathManager.AreBinariesDownloaded() {
+		return fmt.Errorf("Binaries are not downloaded")
 	}
 
 	if n.restartSnapshot == nil {
-		return nil, fmt.Errorf("missing restart snapshot")
+		return fmt.Errorf("missing restart snapshot")
 	}
 
 	chainID, err := n.getChainID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get chain ID: %w", err)
+		return fmt.Errorf("failed to get chain ID: %w", err)
 	}
-
-	visorHome := filepath.Join(n.workDir, "vegavisor_home")
-	vegaHome := filepath.Join(n.workDir, "vega_home")
-	tmHome := filepath.Join(n.workDir, "tendermint_home")
-
 	if force {
-		for _, folderPath := range []string{visorHome, vegaHome, tmHome} {
+		for _, folderPath := range []string{n.pathManager.VegaHome(), n.pathManager.VisorHome(), n.pathManager.TendermintHome()} {
 			n.logger.Sugar().Infof("Removing the %s directory", folderPath)
 			if err := os.RemoveAll(folderPath); err != nil {
-				return nil, fmt.Errorf("failed to remove the %s directory: %w", folderPath, err)
+				return fmt.Errorf("failed to remove the %s directory: %w", folderPath, err)
 			}
 			n.logger.Sugar().Infof("Removed the %s directory", folderPath)
 		}
 	}
 
 	visorInitCommand := []string{
-		n.visorBinaryPath, "init",
+		n.pathManager.VisorBin(), "init",
 		"--with-data-node",
-		"--home", visorHome,
+		"--home", n.pathManager.VisorHome(),
 	}
 	vegaInitCommand := []string{
-		n.vegaBinaryPath, "init",
-		"--home", vegaHome,
-		"--tendermint-home", tmHome,
+		n.pathManager.VegaBin(), "init",
+		"--home", n.pathManager.VegaHome(),
+		"--tendermint-home", n.pathManager.TendermintHome(),
 		"--output", "json",
 		"full",
 	}
 	dataNodeInitCommand := []string{
-		n.vegaBinaryPath, "datanode", "init",
-		"--home", vegaHome,
+		n.pathManager.VegaBin(), "datanode", "init",
+		"--home", n.pathManager.VegaHome(),
 		chainID,
 	}
 
 	n.logger.Sugar().Infof("Initializing the vega visor with the following command: %v", visorInitCommand)
 	if _, err := tools.ExecuteBinary(visorInitCommand[0], visorInitCommand[1:], nil); err != nil {
-		return nil, fmt.Errorf("failed to initialize vegavisor: %w", err)
+		return fmt.Errorf("failed to initialize vegavisor: %w", err)
 	}
 	n.logger.Sugar().Infof("Vegavisor initialized")
 
 	n.logger.Sugar().Infof("Initializing the vega with the following command: %v", vegaInitCommand)
 	if _, err := tools.ExecuteBinary(vegaInitCommand[0], vegaInitCommand[1:], nil); err != nil {
-		return nil, fmt.Errorf("failed to initialize vega: %w", err)
+		return fmt.Errorf("failed to initialize vega: %w", err)
 	}
 	n.logger.Sugar().Infof("Vega initialized")
 
 	n.logger.Sugar().Infof("Initializing the data-node with the following command: %v", dataNodeInitCommand)
 	if _, err := tools.ExecuteBinary(dataNodeInitCommand[0], dataNodeInitCommand[1:], nil); err != nil {
-		return nil, fmt.Errorf("failed to initialize data-node: %w", err)
+		return fmt.Errorf("failed to initialize data-node: %w", err)
 	}
 	n.logger.Sugar().Infof("DataNode initialized")
 
 	// n.logger.Sugar().Info("Executing vegavisor init with the %s home", visorHome)
-	return &LocalNodeDetails{
-		VegaBin:        n.vegaBinaryPath,
-		VisorBin:       n.visorBinaryPath,
-		VegaHome:       vegaHome,
-		TendermintHome: tmHome,
-		VisorHome:      visorHome,
-	}, nil
+	return nil
 }
 
 func (n *Network) downloadGenesis(tendermintHome string) error {
@@ -461,40 +434,39 @@ func (n *Network) downloadGenesis(tendermintHome string) error {
 	return nil
 }
 
-func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
-	vegaPath, err := n.downloadVegaBinary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to download vega binary: %w", err)
+func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
+
+	if err := n.downloadVegaBinary(); err != nil {
+		return fmt.Errorf("failed to download vega binary: %w", err)
 	}
 
-	visorPath, err := n.downloadVegaVisorBinary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to download visor binary: %w", err)
+	if err := n.downloadVegaVisorBinary(); err != nil {
+		return fmt.Errorf("failed to download visor binary: %w", err)
 	}
 
 	restartSnapshot, err := n.getRestartSnapshot()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get restart snapshot from the api: %w", err)
+		return fmt.Errorf("failed to get restart snapshot from the api: %w", err)
 	}
 
 	headHeight, err := n.getNetworkHeight()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get network head height: %w", err)
+		return fmt.Errorf("failed to get network head height: %w", err)
 	}
 
 	chainId, err := n.getChainID()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get chain id: %d", err)
+		return fmt.Errorf("failed to get chain id: %d", err)
 	}
 
 	rpcPeers, err := n.getHealthyRPCPeers()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get RPC peers: %w", err)
+		return fmt.Errorf("failed to get RPC peers: %w", err)
 	}
 
 	appVersion, err := n.getAppVersion()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get app version: %w", err)
+		return fmt.Errorf("failed to get app version: %w", err)
 	}
 
 	overrideVersion := "no"
@@ -508,8 +480,11 @@ func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 	n.logger.Sugar().Info("===================================================")
 	n.logger.Sugar().Infof("Network head height: %d", headHeight)
 	n.logger.Sugar().Infof("Network Chain ID: %s", chainId)
-	n.logger.Sugar().Infof("VegaPath: %s", vegaPath)
-	n.logger.Sugar().Infof("VisorPath: %s", visorPath)
+	n.logger.Sugar().Infof("Vega binary: %s", n.pathManager.VegaBin())
+	n.logger.Sugar().Infof("Visor binary: %s", n.pathManager.VisorBin())
+	n.logger.Sugar().Infof("Vega home: %s", n.pathManager.VegaHome())
+	n.logger.Sugar().Infof("Visor home: %s", n.pathManager.VisorHome())
+	n.logger.Sugar().Infof("Tendermint home: %s", n.pathManager.TendermintHome())
 	n.logger.Sugar().Infof("Snapshot for restart: %#v", restartSnapshot)
 	n.logger.Sugar().Infof("RPCPeers: %v", rpcPeers)
 	n.logger.Sugar().Infof("Bootstrap peers: %v", n.conf.BootstrapPeers)
@@ -518,44 +493,43 @@ func (n *Network) SetupLocalNode() (*LocalNodeDetails, error) {
 	n.logger.Sugar().Infof("Network version: %s", appVersion)
 	n.logger.Sugar().Infof("Override release: %s", overrideVersion)
 
-	localNodeDetails, err := n.initLocally(true)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize node locally: %w", err)
+	if err := n.initLocally(true); err != nil {
+		return fmt.Errorf("failed to initialize node locally: %w", err)
 	}
 
-	if err := n.downloadGenesis(localNodeDetails.TendermintHome); err != nil {
-		return nil, fmt.Errorf("failed to download genesis: %w", err)
+	if err := n.downloadGenesis(n.pathManager.TendermintHome()); err != nil {
+		return fmt.Errorf("failed to download genesis: %w", err)
 	}
 
 	n.logger.Info("Updating vegavisor config")
 	if err := updateVisorConfig(
-		localNodeDetails.VisorHome,
-		localNodeDetails.VegaBin,
-		localNodeDetails.VegaHome,
-		localNodeDetails.TendermintHome,
-		n.workDir); err != nil {
-		return nil, fmt.Errorf("failed to update vegavisor config: %w", err)
+		n.pathManager.VisorHome(),
+		n.pathManager.VegaBin(),
+		n.pathManager.VegaHome(),
+		n.pathManager.TendermintHome(),
+		n.pathManager.WorkDir()); err != nil {
+		return fmt.Errorf("failed to update vegavisor config: %w", err)
 	}
 
 	n.logger.Info("Updating vega config")
-	if err := updateVegaConfig(localNodeDetails.VegaHome, n.workDir, *restartSnapshot); err != nil {
-		return nil, fmt.Errorf("failed to update vega config: %w", err)
+	if err := updateVegaConfig(n.pathManager.VegaHome(), n.pathManager.WorkDir(), *restartSnapshot); err != nil {
+		return fmt.Errorf("failed to update vega config: %w", err)
 	}
 
 	n.logger.Info("Updating tendermint config")
 	if err := updateTendermintConfig(
-		localNodeDetails.TendermintHome,
+		n.pathManager.TendermintHome(),
 		rpcPeers,
 		n.conf.Seeds,
 		*restartSnapshot,
 	); err != nil {
-		return nil, fmt.Errorf("failed to update tendermint config: %w", err)
+		return fmt.Errorf("failed to update tendermint config: %w", err)
 	}
 
 	n.logger.Info("Updating data-node config")
-	if err := updateDataNodeConfig(localNodeDetails.VegaHome, n.conf.BootstrapPeers); err != nil {
-		return nil, fmt.Errorf("failed to update data-node config: %w", err)
+	if err := updateDataNodeConfig(n.pathManager.VegaHome(), n.conf.BootstrapPeers, psqlCreds); err != nil {
+		return fmt.Errorf("failed to update data-node config: %w", err)
 	}
 
-	return localNodeDetails, nil
+	return nil
 }

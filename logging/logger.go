@@ -8,13 +8,12 @@ import (
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-func CreateLogger(l zapcore.Level, filePath string) *zap.Logger {
-	stdout := zapcore.AddSync(os.Stdout)
+const (
+	DoNotLogToFile = ""
+)
 
-	file := zapcore.AddSync(&lumberjack.Logger{
-		Filename: filePath,
-		MaxSize:  300,
-	})
+func CreateLogger(l zapcore.Level, filePath string, withStdoutLogger bool) *zap.Logger {
+	stdout := zapcore.AddSync(os.Stdout)
 
 	level := zap.NewAtomicLevelAt(l)
 
@@ -25,12 +24,25 @@ func CreateLogger(l zapcore.Level, filePath string) *zap.Logger {
 	developmentCfg := zap.NewDevelopmentEncoderConfig()
 	developmentCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
-	consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
-	fileEncoder := zapcore.NewConsoleEncoder(productionCfg)
+	loggerStreams := []zapcore.Core{}
+
+	if withStdoutLogger {
+		consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
+		loggerStreams = append(loggerStreams, zapcore.NewCore(consoleEncoder, stdout, level))
+	}
+
+	if len(filePath) > 0 {
+		file := zapcore.AddSync(&lumberjack.Logger{
+			Filename: filePath,
+			MaxSize:  300,
+		})
+
+		fileEncoder := zapcore.NewConsoleEncoder(productionCfg)
+		loggerStreams = append(loggerStreams, zapcore.NewCore(fileEncoder, file, level))
+	}
 
 	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, stdout, level),
-		zapcore.NewCore(fileEncoder, file, level),
+		loggerStreams...,
 	)
 
 	return zap.New(core)

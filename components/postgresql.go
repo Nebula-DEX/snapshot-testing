@@ -12,13 +12,11 @@ import (
 type postgresql struct {
 	containerName string
 
-	envName      string
 	dockerClient *docker.Client
 }
 
-func NewPostgresql(envName string, dockerClient *docker.Client) (Component, error) {
+func NewPostgresql(dockerClient *docker.Client) (Component, error) {
 	return &postgresql{
-		envName:      envName,
 		dockerClient: dockerClient,
 	}, nil
 }
