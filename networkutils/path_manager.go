@@ -52,6 +52,10 @@ func (pm PathManager) LogFile(fileName string) string {
 	return filepath.Join(pm.Logs(), fileName)
 }
 
+func (pm PathManager) Results() string {
+	return filepath.Join(pm.workDir, "results.json")
+}
+
 func (pm PathManager) fileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {

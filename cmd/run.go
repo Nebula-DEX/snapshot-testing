@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -96,6 +98,17 @@ func runSnapshotTesting(duration time.Duration) error {
 
 	if err := components.Run(testCtx, pathManager, mainLogger.Named("controller"), testsComponents); err != nil {
 		return fmt.Errorf("failed to run test components: %w", err)
+	}
+
+	mainLogger.Sugar().Infof("Snapshot testing finished after %s", duration.String())
+	jsonResults, err := json.MarshalIndent(watchdog.Result(), "", "    ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal snapshot-testing results into JSON: %w", err)
+	}
+	mainLogger.Sugar().Infof("Result: %s", jsonResults)
+	mainLogger.Sugar().Infof("Writing results to the %s file", pathManager.Results())
+	if err := os.WriteFile(pathManager.Results(), jsonResults, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to write results to %s: %w", pathManager.Results(), err)
 	}
 
 	return nil
