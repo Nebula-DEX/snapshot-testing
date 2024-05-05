@@ -15,6 +15,10 @@ func NewCHecker(envName string) (Component, error) {
 	}, nil
 }
 
+func (c *checker) Name() string {
+	return "watchdog"
+}
+
 // Healthy implements Component.
 func (c *checker) Healthy() (bool, error) {
 	panic("unimplemented")

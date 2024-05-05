@@ -1,6 +1,7 @@
 package networkutils
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -47,6 +48,10 @@ func (pm PathManager) VisorBin() string {
 	return filepath.Join(pm.Binaries(), "visor")
 }
 
+func (pm PathManager) LogFile(fileName string) string {
+	return filepath.Join(pm.Logs(), fileName)
+}
+
 func (pm PathManager) fileExists(filePath string) bool {
 	_, err := os.Stat(filePath)
 	if os.IsNotExist(err) {
@@ -54,6 +59,20 @@ func (pm PathManager) fileExists(filePath string) bool {
 	}
 
 	return err == nil
+}
+
+func (pm PathManager) CreateDirectoryStructure() error {
+	// logger.Sugar().Infof("Ensure the working directory(%s) exists", path) // TODO: We have no loger at this point
+	if err := os.MkdirAll(pm.workDir, os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create working directory")
+	}
+
+	// logger.Sugar().Infof("Ensure the directory for logs (%s) exists", logsDir)
+	if err := os.MkdirAll(pm.Logs(), os.ModePerm); err != nil {
+		return fmt.Errorf("failed to create logs directory")
+	}
+
+	return nil
 }
 
 func (pm PathManager) IsNodeInitialized() bool {

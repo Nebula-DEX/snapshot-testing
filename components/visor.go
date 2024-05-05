@@ -3,24 +3,26 @@ package components
 import (
 	"context"
 	"io"
+
+	"go.uber.org/zap"
 )
 
 type visor struct {
-	envName string
+	logger *zap.Logger
 
-	vegavisorHome  string
-	vegaHome       string
-	tendermintHome string
+	vegavisorHome string
 }
 
-func NewVisor(envName string, vegavisorHome string, vegaHome string, tendermintHome string) (Component, error) {
+func NewVisor(envName string, vegavisorHome string, logger *zap.Logger) (Component, error) {
 	return &visor{
-		envName: envName,
+		logger: logger,
 
-		vegavisorHome:  vegavisorHome,
-		vegaHome:       vegaHome,
-		tendermintHome: tendermintHome,
+		vegavisorHome: vegavisorHome,
 	}, nil
+}
+
+func (v *visor) Name() string {
+	return "vegavisor"
 }
 
 // Healthy implements Component.

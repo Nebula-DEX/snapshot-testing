@@ -1,9 +1,9 @@
 package config
 
 var PostgresqlConfig = ContainerConfig{
-	Name:  "snapshot-testing-postgresql",
-	Image: "timescale/timescaledb:2.8.0-pg14",
-	// Environment: map[string]string{
+	Name:        "snapshot-testing-postgresql",
+	Image:       "timescale/timescaledb:2.8.0-pg14",
+	Environment: map[string]string{},
 	// 	"POSTGRES_USER":     "vega",
 	// 	"POSTGRES_DB":       "vega",
 	// 	"POSTGRES_PASSWORD": "vega",
@@ -19,7 +19,7 @@ var PostgresqlConfig = ContainerConfig{
 		"-c", "shared_buffers=2GB",
 		"-c", "temp_buffers=5MB",
 	},
-	// Ports: map[uint16]uint16{
+	Ports: map[uint16]uint16{},
 	// 	5432: 5432,
 	// },
 }

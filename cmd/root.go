@@ -34,4 +34,5 @@ func init() {
 		"the environment you want to run testing on, available values are: mainnet, fairground, stagnet1, devnet1",
 	)
 	rootCmd.AddCommand(prepareCmd)
+	rootCmd.AddCommand(runCmd)
 }

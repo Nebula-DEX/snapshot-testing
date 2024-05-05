@@ -32,7 +32,7 @@ type Client struct {
 }
 
 func NewClient() (*Client, error) {
-	apiClient, err := client.NewClientWithOpts(client.FromEnv)
+	apiClient, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to create docker api client from env: %w", err)
@@ -70,8 +70,15 @@ func (c *Client) fullContainerId(ctx context.Context, containerId string) (strin
 
 func (c *Client) ContainerExist(ctx context.Context, containerId string) (bool, error) {
 	_, err := c.fullContainerId(ctx, containerId)
+	if err == nil {
+		return true, nil
+	}
 
-	return err == nil, err
+	if strings.Contains(err.Error(), "not found") {
+		return false, nil
+	}
+
+	return false, err
 }
 
 func (c *Client) ContainerRunning(ctx context.Context, containerId string) (bool, error) {
@@ -86,6 +93,24 @@ func (c *Client) ContainerRunning(ctx context.Context, containerId string) (bool
 	}
 
 	return inspect.State.Running, nil
+}
+
+func (c *Client) ContainerStarting(ctx context.Context, containerId string) (bool, error) {
+	fullContainerId, err := c.fullContainerId(ctx, containerId)
+	if err != nil {
+		return false, fmt.Errorf("failed to get full container name: %w", err)
+	}
+
+	inspect, err := c.apiClient.ContainerInspect(ctx, fullContainerId)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect container: %w", err)
+	}
+
+	return (!inspect.State.Running &&
+		!inspect.State.Dead &&
+		!inspect.State.Restarting &&
+		inspect.State.StartedAt != "" &&
+		inspect.State.FinishedAt == ""), nil
 }
 
 func (c *Client) ContainerRemoveForce(ctx context.Context, containerId string) error {
@@ -131,7 +156,7 @@ func (c *Client) RunContainer(ctx context.Context, config config.ContainerConfig
 	}
 
 	if err := c.apiClient.ContainerStart(ctx, resp.ID, container.StartOptions{}); err != nil {
-		panic(err)
+		return fmt.Errorf("failed to start container: %w", err)
 	}
 
 	return nil

@@ -7,18 +7,32 @@ import (
 
 	"github.com/vegaprotocol/snapshot-testing/clients/docker"
 	"github.com/vegaprotocol/snapshot-testing/config"
+	"github.com/vegaprotocol/snapshot-testing/logging"
+	"go.uber.org/zap"
 )
 
 type postgresql struct {
+	mainLogger    *zap.Logger
+	stdoutLogger  *zap.Logger
+	stderrLogger  *zap.Logger
 	containerName string
+	credentials   config.PostgreSQLCreds
 
 	dockerClient *docker.Client
 }
 
-func NewPostgresql(dockerClient *docker.Client) (Component, error) {
+func NewPostgresql(dockerClient *docker.Client, credentials config.PostgreSQLCreds, mainLogger *zap.Logger, stdoutLogger *zap.Logger, stderrLogger *zap.Logger) (Component, error) {
 	return &postgresql{
+		mainLogger:   mainLogger,
+		stdoutLogger: stdoutLogger,
+		stderrLogger: stderrLogger,
 		dockerClient: dockerClient,
+		credentials:  credentials,
 	}, nil
+}
+
+func (p *postgresql) Name() string {
+	return "postgresql"
 }
 
 // Healthy implements Component.
@@ -27,35 +41,52 @@ func (p *postgresql) Healthy() (bool, error) {
 		return false, fmt.Errorf("the postgresql has not been started")
 	}
 
-	return p.dockerClient.ContainerRunning(context.Background(), p.containerName)
-}
-
-// Logs implements Component.
-func (p *postgresql) Stdout(ctx context.Context) (io.ReadCloser, error) {
-	if p.containerName == "" {
-		return nil, fmt.Errorf("the postgresql has not been started")
+	running, err := p.dockerClient.ContainerRunning(context.Background(), p.containerName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if container is running: %w", err)
 	}
 
-	return p.dockerClient.Stdout(ctx, p.containerName, true)
-}
-
-// Logs implements Component.
-func (p *postgresql) Stderr(ctx context.Context) (io.ReadCloser, error) {
-
-	if p.containerName == "" {
-		return nil, fmt.Errorf("the postgresql has not been started")
-	}
-
-	return p.dockerClient.Stderr(ctx, p.containerName, true)
+	return running, nil
 }
 
 // Start implements Component.
 func (p *postgresql) Start(ctx context.Context) error {
-	err := p.dockerClient.RunContainer(ctx, config.PostgresqlConfig)
-	p.containerName = config.PostgresqlConfig.Name
+	container := config.PostgresqlConfig
+	container.Environment["POSTGRES_USER"] = p.credentials.User
+	container.Environment["POSTGRES_DB"] = p.credentials.DbName
+	container.Environment["POSTGRES_PASSWORD"] = p.credentials.Pass
+	container.Ports[p.credentials.Port] = p.credentials.Port
+
+	err := p.dockerClient.RunContainer(ctx, container)
+	p.containerName = container.Name
 	if err != nil {
 		return fmt.Errorf("failed to start postgresql component: %w", err)
 	}
+
+	stdout, err := p.dockerClient.Stdout(ctx, p.containerName, true)
+	if err != nil {
+		return fmt.Errorf("failed to get stdout stream for postgresql: %w", err)
+	}
+	stderr, err := p.dockerClient.Stderr(ctx, p.containerName, true)
+	if err != nil {
+		return fmt.Errorf("failed to get stderr stream for postgresql: %w", err)
+	}
+	defer stdout.Close()
+	defer stderr.Close()
+
+	go func(stream io.Reader) {
+		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil {
+			p.mainLogger.Error("failed to stream postgresql stdout", zap.Error(err))
+		}
+	}(stdout)
+
+	go func(stream io.Reader) {
+		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil {
+			p.mainLogger.Error("failed to stream postgresql stdout", zap.Error(err))
+		}
+	}(stderr)
+
+	<-ctx.Done()
 
 	return nil
 }
