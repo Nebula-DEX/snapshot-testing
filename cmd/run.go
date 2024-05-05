@@ -36,7 +36,7 @@ func runSnapshotTesting(duration time.Duration) error {
 	}
 
 	// We do not want to log this to file
-	mainLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("main.go"), true)
+	mainLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("main.log"), true, true)
 	networkConfig, err := config.NetworkConfigForEnvironmentName(environment)
 	if err != nil {
 		return fmt.Errorf("failed to get network config: %w", err)
@@ -51,16 +51,37 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to create docker client: %w", err)
 	}
 
-	psqlStdoutLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("psql-stdout.log"), false)
-	psqlStderrLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("psql-stderr.log"), false)
+	psqlStdoutLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("psql-stdout.log"), false, false)
+	psqlStderrLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("psql-stderr.log"), false, false)
 
-	postgresql, err := components.NewPostgresql(dockerClient, config.DefaultCredentials, mainLogger, psqlStdoutLogger, psqlStderrLogger)
+	postgresql, err := components.NewPostgresql(
+		dockerClient,
+		config.DefaultCredentials,
+		mainLogger,
+		psqlStdoutLogger,
+		psqlStderrLogger,
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create postgresql component: %w", err)
 	}
 
+	visorStdoutLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("visor-stdout.log"), false, false)
+	visorStderrLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("visor-stderr.log"), false, false)
+
+	visor, err := components.NewVisor(
+		pathManager.VisorBin(),
+		pathManager.VisorHome(),
+		mainLogger,
+		visorStdoutLogger,
+		visorStderrLogger,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create visor component: %w", err)
+	}
+
 	testsComponents := []components.Component{
 		postgresql,
+		visor,
 	}
 
 	if err := components.Run(pathManager, mainLogger, testsComponents); err != nil {

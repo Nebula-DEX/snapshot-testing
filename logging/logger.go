@@ -12,22 +12,25 @@ const (
 	DoNotLogToFile = ""
 )
 
-func CreateLogger(l zapcore.Level, filePath string, withStdoutLogger bool) *zap.Logger {
+func CreateLogger(l zapcore.Level, filePath string, withStdoutLogger bool, withExtraFields bool) *zap.Logger {
 	stdout := zapcore.AddSync(os.Stdout)
 
 	level := zap.NewAtomicLevelAt(l)
 
 	productionCfg := zap.NewProductionEncoderConfig()
-	productionCfg.TimeKey = "timestamp"
-	productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	if withExtraFields {
+		productionCfg.TimeKey = "timestamp"
+		productionCfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	} else {
 
-	developmentCfg := zap.NewDevelopmentEncoderConfig()
-	developmentCfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
+		productionCfg.TimeKey = zapcore.OmitKey
+		productionCfg.LevelKey = zapcore.OmitKey
+	}
 
 	loggerStreams := []zapcore.Core{}
 
 	if withStdoutLogger {
-		consoleEncoder := zapcore.NewConsoleEncoder(developmentCfg)
+		consoleEncoder := zapcore.NewConsoleEncoder(productionCfg)
 		loggerStreams = append(loggerStreams, zapcore.NewCore(consoleEncoder, stdout, level))
 	}
 
