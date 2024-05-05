@@ -46,6 +46,10 @@ func (v *visor) Name() string {
 	return "vegavisor"
 }
 
+func (v *visor) Result() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
 // Healthy implements Component.
 func (v *visor) Healthy() (bool, error) {
 	// Still not started

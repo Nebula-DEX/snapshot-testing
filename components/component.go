@@ -10,4 +10,5 @@ type Component interface {
 	Stop(ctx context.Context) error
 	Healthy() (bool, error)
 	Cleanup(ctx context.Context) error
+	Result() map[string]interface{}
 }

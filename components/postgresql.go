@@ -108,6 +108,10 @@ func (p *postgresql) Stop(ctx context.Context) error {
 	return nil
 }
 
+func (p *postgresql) Result() map[string]interface{} {
+	return map[string]interface{}{}
+}
+
 // Stop implements Component.
 func (p *postgresql) Cleanup(ctx context.Context) error {
 	return p.Stop(ctx)

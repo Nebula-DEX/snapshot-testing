@@ -23,7 +23,7 @@ type rawStatistics struct {
 	}
 }
 
-type statistics struct {
+type Statistics struct {
 	BlockHeight    uint64
 	DataNodeHeight uint64
 
@@ -34,7 +34,7 @@ type statistics struct {
 	AppVersion string
 }
 
-func getStatistics(restURL string) (*statistics, error) {
+func GetStatistics(restURL string) (*Statistics, error) {
 	statisticsURL := fmt.Sprintf("%s/statistics", strings.TrimRight(restURL, "/"))
 
 	resp, err := http.Get(statisticsURL)
@@ -76,7 +76,7 @@ func getStatistics(restURL string) (*statistics, error) {
 		}
 	}
 
-	result := &statistics{
+	result := &Statistics{
 		BlockHeight:    blockHeight,
 		DataNodeHeight: dataNodeHeight,
 		CurrentTime:    currentTime,
@@ -87,6 +87,35 @@ func getStatistics(restURL string) (*statistics, error) {
 	}
 
 	return result, nil
+}
+
+func GetLatestStatistics(restEndpoints []string) (*Statistics, error) {
+	if len(restEndpoints) < 1 {
+		return nil, fmt.Errorf("no rest endpoint passed")
+	}
+
+	var latestStatistics *Statistics
+
+	for _, endpoint := range restEndpoints {
+		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
+			return GetStatistics(endpoint)
+		})
+
+		if err != nil {
+			// TODO: Maybe we can think about logging
+			continue
+		}
+
+		if latestStatistics == nil || latestStatistics.BlockHeight < statistics.BlockHeight {
+			latestStatistics = statistics
+		}
+	}
+
+	if latestStatistics == nil {
+		return nil, fmt.Errorf("all endpoints are unhealthy")
+	}
+
+	return latestStatistics, nil
 }
 
 type rawSnapshots struct {
@@ -154,8 +183,8 @@ func getSnapshots(restURL string) ([]Snapshot, error) {
 
 func isRESTEndpointHealthy(logger *zap.Logger, networkHeadHeight uint64, restURL string) bool {
 	logger.Sugar().Infof("Fetching statistics from %s", restURL)
-	statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
-		return getStatistics(restURL)
+	statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
+		return GetStatistics(restURL)
 	})
 
 	if err != nil {

@@ -92,8 +92,8 @@ func (n *Network) getNetworkHeight() (uint64, error) {
 	n.logger.Info("Fetching statistics from all the REST endpoint to get the network height")
 	for _, restURL := range n.conf.DataNodesREST {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
-		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
-			return getStatistics(restURL)
+		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
+			return GetStatistics(restURL)
 		})
 
 		if err != nil {
@@ -125,8 +125,8 @@ func (n *Network) getChainID() (string, error) {
 	n.logger.Info("Fetching the network chain id")
 	for _, restURL := range n.conf.DataNodesREST {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
-		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
-			return getStatistics(restURL)
+		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
+			return GetStatistics(restURL)
 		})
 
 		if err != nil {
@@ -164,8 +164,8 @@ func (n *Network) getAppVersion() (string, error) {
 
 	for _, restURL := range healthyRESTEndpoints {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
-		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*statistics, error) {
-			return getStatistics(restURL)
+		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
+			return GetStatistics(restURL)
 		})
 
 		if err != nil {
