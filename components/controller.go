@@ -9,8 +9,8 @@ import (
 	"go.uber.org/zap"
 )
 
-func Run(pathManager networkutils.PathManager, mainLogger *zap.Logger, components []Component) error {
-	ctx, cancel := context.WithCancel(context.Background())
+func Run(ctx context.Context, pathManager networkutils.PathManager, mainLogger *zap.Logger, components []Component) error {
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	mainLogger.Info("Running cleanup for all the components")
@@ -45,8 +45,15 @@ func Run(pathManager networkutils.PathManager, mainLogger *zap.Logger, component
 		}
 	}(components)
 
+	ticker := time.NewTicker(30 * time.Second)
+
 	for {
-		time.Sleep(30 * time.Second)
+		ticker.Reset(30 * time.Second)
+		select {
+		case <-ticker.C:
+		case <-ctx.Done():
+			return nil
+		}
 		allComponentsHealthy := true
 		mainLogger.Info("Running health check")
 		for _, component := range components {

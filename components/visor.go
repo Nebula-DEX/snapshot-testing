@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -115,7 +116,8 @@ func (v *visor) Start(ctx context.Context) error {
 	go func(cmd *exec.Cmd) {
 		time.Sleep(30 * time.Second)
 		v.started = true
-		if err := cmd.Run(); err != nil {
+		// We do not care about errors if test has finished(parent context expired)
+		if err := cmd.Run(); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			v.mainLogger.Error("failed to start vegavisor", zap.Error(err))
 		}
 		v.finished = true
@@ -125,13 +127,13 @@ func (v *visor) Start(ctx context.Context) error {
 	defer stderr.Close()
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil {
+		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			v.mainLogger.Error("failed to stream visor stdout", zap.Error(err))
 		}
 	}(stdout)
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil {
+		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			v.mainLogger.Error("failed to stream visor stdout", zap.Error(err))
 		}
 	}(stderr)

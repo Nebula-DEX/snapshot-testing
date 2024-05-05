@@ -2,6 +2,7 @@ package components
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 
@@ -75,13 +76,13 @@ func (p *postgresql) Start(ctx context.Context) error {
 	defer stderr.Close()
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil {
+		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			p.mainLogger.Error("failed to stream postgresql stdout", zap.Error(err))
 		}
 	}(stdout)
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil {
+		if err := logging.StreamLogs(stream, p.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			p.mainLogger.Error("failed to stream postgresql stdout", zap.Error(err))
 		}
 	}(stderr)

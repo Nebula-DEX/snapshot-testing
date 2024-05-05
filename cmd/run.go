@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -42,7 +43,7 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to get network config: %w", err)
 	}
 
-	if err := prepareNetwork(mainLogger, pathManager, *networkConfig, config.DefaultCredentials); err != nil {
+	if err := prepareNetwork(mainLogger.Named("prepare-network"), pathManager, *networkConfig, config.DefaultCredentials); err != nil {
 		return fmt.Errorf("failed to setup local network: %w", err)
 	}
 
@@ -57,7 +58,7 @@ func runSnapshotTesting(duration time.Duration) error {
 	postgresql, err := components.NewPostgresql(
 		dockerClient,
 		config.DefaultCredentials,
-		mainLogger,
+		mainLogger.Named("postgresql"),
 		psqlStdoutLogger,
 		psqlStderrLogger,
 	)
@@ -71,7 +72,7 @@ func runSnapshotTesting(duration time.Duration) error {
 	visor, err := components.NewVisor(
 		pathManager.VisorBin(),
 		pathManager.VisorHome(),
-		mainLogger,
+		mainLogger.Named("visor"),
 		visorStdoutLogger,
 		visorStderrLogger,
 	)
@@ -79,12 +80,21 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to create visor component: %w", err)
 	}
 
+	watchdog, err := components.NewWatchdog(networkConfig.DataNodesREST, mainLogger.Named("watchdog"))
+	if err != nil {
+		return fmt.Errorf("failed to create watchdog component: %w", err)
+	}
+
 	testsComponents := []components.Component{
 		postgresql,
 		visor,
+		watchdog,
 	}
 
-	if err := components.Run(pathManager, mainLogger, testsComponents); err != nil {
+	testCtx, testCancel := context.WithTimeout(context.Background(), duration)
+	defer testCancel()
+
+	if err := components.Run(testCtx, pathManager, mainLogger.Named("controller"), testsComponents); err != nil {
 		return fmt.Errorf("failed to run test components: %w", err)
 	}
 
