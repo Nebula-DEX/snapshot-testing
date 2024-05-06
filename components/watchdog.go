@@ -75,6 +75,7 @@ const (
 	KeyCatchUp         = "node-catch-up"
 	KeyLastLag         = "node-last-lag"
 	KeyLastHealthy     = "node-last-healthy"
+	KeyCatchUpTime     = "catchup-duration"
 )
 
 // Prepare results that can be write into some file
@@ -87,6 +88,11 @@ func (lns localNodeStatus) toMap() map[string]interface{} {
 		KeyCatchUp:         lns.catchUp.String(),
 		KeyLastLag:         lns.lagging.String(),
 		KeyLastHealthy:     lns.healthy.String(),
+		KeyCatchUpTime:     "N/A",
+	}
+
+	if !lns.catchUp.IsZero() {
+		res[KeyCatchUpTime] = lns.catchUp.Sub(lns.started).String()
 	}
 
 	return res
