@@ -3,16 +3,24 @@ package config
 import "fmt"
 
 const (
-	NetworkNameMainnet    string = "mainnet"
-	NetworkNameFairground string = "fairground"
-	NetworkNameStagnet1   string = "stagnet1"
-	NetworkNameDevnet1    string = "devnet1"
+	NetworkNameMainnet       string = "mainnet"
+	NetworkNameFairground    string = "fairground"
+	NetworkNameStagnet1      string = "stagnet1"
+	NetworkNameDevnet1       string = "devnet1"
+	NetworkMainnetMirror     string = "mainnet-mirror"
+	NetworkMainnetMirrorAlt  string = "mirror"
+	NetworkValidatorTestnet  string = "validator-testnet"
+	NetworkValidatorsTestnet string = "validators-testnet"
 )
 
 func NetworkConfigForEnvironmentName(envName string) (*Network, error) {
 	switch envName {
 	case NetworkNameMainnet:
 		return &Mainnet, nil
+	case NetworkMainnetMirror, NetworkMainnetMirrorAlt:
+		return &MainnetMirror, nil
+	case NetworkValidatorTestnet, NetworkValidatorsTestnet:
+		return &ValidatorsTestnet, nil
 	case NetworkNameFairground:
 		return &Fairground, nil
 	case NetworkNameStagnet1:
@@ -158,6 +166,76 @@ var (
 			"/dns/n00.devnet1.vega.rocks/tcp/4001/ipfs/12D3KooWBsVeEhCjG2djhpwexZWb76Afd7Nh6gUfpxNBr61KKojj",
 			"/dns/n06.devnet1.vega.rocks/tcp/4001/ipfs/12D3KooWEbFqpQc2srFtrPcYK5t1e8mfouDutyzwW3XBEPhqYrLi",
 			"/dns/n07.devnet1.vega.rocks/tcp/4001/ipfs/12D3KooWSjnLDRMwrNxWqyyzkWCkiP7JaHpKkgbNGpo8fWWfkXoy",
+		},
+	}
+
+	MainnetMirror = Network{
+		ArtifactsRepository: "vegaprotocol/vega",
+		GenesisURL:          "https://raw.githubusercontent.com/vegaprotocol/networks-internal/main/mainnet-mirror/genesis.json",
+		DataNodesREST: []string{
+			"https://api.n00.mainnet-mirror.vega.rocks",
+			"https://api.n06.mainnet-mirror.vega.rocks",
+		},
+		RPCPeers: []EndpointWithREST{
+			{CoreREST: "https://n00.mainnet-mirror.vega.rocks", Endpoint: "n00.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n01.mainnet-mirror.vega.rocks", Endpoint: "n01.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n02.mainnet-mirror.vega.rocks", Endpoint: "n02.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n03.mainnet-mirror.vega.rocks", Endpoint: "n03.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n04.mainnet-mirror.vega.rocks", Endpoint: "n04.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n05.mainnet-mirror.vega.rocks", Endpoint: "n05.mainnet-mirror.vega.rocks:26657"},
+			{CoreREST: "https://n06.mainnet-mirror.vega.rocks", Endpoint: "n06.mainnet-mirror.vega.rocks:26657"},
+		},
+		Seeds: []string{
+			"6b4d261bfbf198e8d7c09fd514f3a0dcd4257e99@n01.mainnet-mirror.vega.rocks:26656",
+			"bed5110d707cf760bdb6ab0ef0ddecddef8a1c34@n02.mainnet-mirror.vega.rocks:26656",
+			"0fef54f45d60ec194117346910c3f65e88989733@n03.mainnet-mirror.vega.rocks:26656",
+			"49e3520fa334106893294d0cfe685a01b7e6f8a9@n04.mainnet-mirror.vega.rocks:26656",
+			"23313341785e9a43de0fabba9fc16fe21746350d@n05.mainnet-mirror.vega.rocks:26656",
+		},
+		BootstrapPeers: []string{
+			"/dns/n00.mainnet-mirror.vega.rocks/tcp/4001/ipfs/12D3KooWLTtXvPevvqe2588ZEMDzy7tUmP8JwRZwDs2TNQYQwdyt",
+			"/dns/n06.mainnet-mirror.vega.rocks/tcp/4001/ipfs/12D3KooWPgpoSABsN5zH9JzLAmnWMJyA7tycHTp7K1q3nRnm5c2A",
+		},
+	}
+
+	ValidatorsTestnet = Network{
+		ArtifactsRepository: "vegaprotocol/vega",
+		GenesisURL:          "https://raw.githubusercontent.com/vegaprotocol/networks/master/testnet2/genesis.json",
+		DataNodesREST: []string{
+			"https://api.n00.validators-testnet.vega.rocks",
+			"https://api.n02.validators-testnet.vega.rocks",
+			"https://api.metabase00.validators-testnet.vega.rocks",
+		},
+		RPCPeers: []EndpointWithREST{
+			{CoreREST: "https://n00.validators-testnet.vega.rocks", Endpoint: "n00.validators-testnet.vega.rocks:26657"},
+			{CoreREST: "https://n01.validators-testnet.vega.rocks", Endpoint: "n01.validators-testnet.vega.rocks:26657"},
+			{CoreREST: "https://n02.validators-testnet.vega.rocks", Endpoint: "n02.validators-testnet.vega.rocks:26657"},
+			{CoreREST: "https://metabase00.validators-testnet.vega.rocks", Endpoint: "metabase00.validators-testnet.vega.rocks:26657"},
+		},
+		Seeds: []string{
+			"fdd97c9dba30ad45d24bee19503ba164378e7676@65.108.77.179:26656",
+			"b167d445d103864cc43b8685a5b559c43d7874c2@sn011.validators-testnet.vega.rocks:40116",
+			"8d56e01212501d839ab385487347f4b3110f0b29@sn010.validators-testnet.vega.rocks:40106",
+			"19ff93fb93e9d1b275cc395b228afba5161abb69@34.88.143.93:26656",
+			"bdd14fe2b171deae3850a8022ea672e4b031e61b@146.59.55.53:36656",
+			"71b74583f666d14b9422bf76bcc0967da2b8ea1e@5.9.95.147:26656",
+			"03d7b7153e33f3109b61854ed4f07da3048479a8@34.88.143.93:26656",
+			"bcde8a5e531d2bddf6562b00c868edec6131cbc6@n02.validators-testnet.vega.rocks:26656",
+			"5729b2e5f4612718e7bb8fb13293cbcf9e29e745@5.181.190.159:26656",
+			"4a848271a1f689f5bea1a6d0634b3ee2ab8879df@metabase00.validators-testnet.vega.xyz:26656",
+			"dcd7690daeb1d07c606c3f373db8202f4a96e866@34.88.143.93:26656",
+			"16f5f15024530f4a2d966e13bc81d3aaa536f726@54.234.87.229:26656",
+			"a07c6df1f34a15db414d8c7de88ac2b4045b53f1@be.validators-testnet.vega.xyz:26656",
+			"96cd04a559a06503812388856b0fda3130f2cd83@141.95.97.28:26656",
+			"51ffb62faac4256dcae01a4c46c2623a1c19ad1d@51.75.145.104:16456",
+			"66a2375c146cf85dd6f0b3c54c337d799225e5db@65.108.57.71:26656",
+			"53df354f81d9330500c3a36163434813f7bcbd05@85.207.33.71:26656",
+			"b180c59bc8299fa513ea101d257724c87a2e160b@65.21.151.106:26656",
+		},
+		BootstrapPeers: []string{
+			"/dns/n00.validators-testnet.vega.rocks/tcp/4001/ipfs/12D3KooWQbCMy5echT1sMKwRQh8GJJk5zmHmg6VNg1qEbpysNACN",
+			"/dns/n02.validators-testnet.vega.rocks/tcp/4001/ipfs/12D3KooWHffX2tdw2phH7ai8GCo2K3ehJfnLRATve5otVr4D3ggK",
+			"/dns/metabase00.validators-testnet.vega.rocks/tcp/4001/ipfs/12D3KooWKPDZ1s5FM8YewZVeRb9XwaQ7PdaoyD84hFnKmVbn94gN",
 		},
 	}
 )
