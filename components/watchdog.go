@@ -23,9 +23,12 @@ type event struct {
 }
 
 type localNodeStatus struct {
-	started   time.Time // We started the watchdog thread
-	firstSeen time.Time // We got first response from the /statistics for local node
-	catchUp   time.Time // Node catch rest of the network up
+	started                time.Time // We started the watchdog thread
+	firstSeen              time.Time // We got first response from the /statistics for local node
+	catchUp                time.Time // Node catch rest of the network up
+	blockProductionStopped time.Time // Node did not produce blocks
+
+	lastHeight uint64
 
 	lagging time.Time // When node started lagging
 	healthy time.Time // Last healthy event
@@ -34,6 +37,11 @@ type localNodeStatus struct {
 }
 
 func (lns localNodeStatus) healthyStatus() HealthyStatus {
+	// Node stopped producing blocks at some point
+	if lns.blockProductionStopped.After(lns.healthy) {
+		return Unhealthy
+	}
+
 	// Node was up to date and did not lagging on the end
 	if !lns.catchUp.IsZero() && lns.healthy.After(lns.lagging) {
 		return Healthy
@@ -48,8 +56,12 @@ func (lns localNodeStatus) healthyStatus() HealthyStatus {
 }
 
 func (lns localNodeStatus) unhealthyReason() string {
-	if !lns.catchUp.IsZero() && lns.healthy.After(lns.lagging) {
+	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.lagging) {
 		return ""
+	}
+
+	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.blockProductionStopped) {
+		return fmt.Sprintf("Node stopped producing blocks at block %d", lns.lastHeight)
 	}
 
 	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.lagging) {
@@ -64,31 +76,39 @@ func (lns localNodeStatus) unhealthyReason() string {
 		return "Node never returned valid response for the /statistics endpoint"
 	}
 
+	if lns.blockProductionStopped.After(lns.healthy) {
+		return fmt.Sprintf("Node stopped producing blocks at block %d", lns.lastHeight)
+	}
+
 	return "Unknown reason?????"
 }
 
 const (
-	KeyNodeStatus      = "status"
-	KeyUnhealthyReason = "reason"
-	KeyStarted         = "test-startup"
-	KeyFirstSeen       = "node-startup"
-	KeyCatchUp         = "node-catch-up"
-	KeyLastLag         = "node-last-lag"
-	KeyLastHealthy     = "node-last-healthy"
-	KeyCatchUpTime     = "catchup-duration"
+	KeyNodeStatus                    = "status"
+	KeyUnhealthyReason               = "reason"
+	KeyStarted                       = "test-startup"
+	KeyFirstSeen                     = "node-startup"
+	KeyCatchUp                       = "node-catch-up"
+	KeyLastLag                       = "node-last-lag"
+	KeyLastHealthy                   = "node-last-healthy"
+	KeyCatchUpTime                   = "catchup-duration"
+	KeyNetworkStoppedProducingBlocks = "network-stopped-producing blocks"
+	KeyLastKnownNodeHeight           = "last-known-node-height"
 )
 
 // Prepare results that can be write into some file
-func (lns localNodeStatus) toMap() map[string]interface{} {
-	res := map[string]interface{}{
-		KeyNodeStatus:      lns.healthyStatus(),
-		KeyUnhealthyReason: lns.unhealthyReason(),
-		KeyStarted:         lns.started.String(),
-		KeyFirstSeen:       lns.firstSeen.String(),
-		KeyCatchUp:         lns.catchUp.String(),
-		KeyLastLag:         lns.lagging.String(),
-		KeyLastHealthy:     lns.healthy.String(),
-		KeyCatchUpTime:     "N/A",
+func (lns localNodeStatus) toMap() ComponentResults {
+	res := ComponentResults{
+		KeyNodeStatus:                    lns.healthyStatus(),
+		KeyUnhealthyReason:               lns.unhealthyReason(),
+		KeyStarted:                       lns.started.String(),
+		KeyFirstSeen:                     lns.firstSeen.String(),
+		KeyCatchUp:                       lns.catchUp.String(),
+		KeyLastLag:                       lns.lagging.String(),
+		KeyLastHealthy:                   lns.healthy.String(),
+		KeyLastKnownNodeHeight:           lns.lastHeight,
+		KeyNetworkStoppedProducingBlocks: lns.blockProductionStopped.String(),
+		KeyCatchUpTime:                   "N/A",
 	}
 
 	if !lns.catchUp.IsZero() {
@@ -135,7 +155,7 @@ func (w *watchdog) Name() string {
 	return "watchdog"
 }
 
-func (w *watchdog) Result() map[string]interface{} {
+func (w *watchdog) Result() ComponentResults {
 	return w.status.toMap()
 }
 
@@ -146,7 +166,9 @@ func (w *watchdog) Healthy() (bool, error) {
 	return lastReconciliationDiff < 30*time.Second, nil
 }
 
-// Start implements Component.
+// Start start the watchdog components and keep eyes on the node. It is responsible to set
+// fields values in the w.status fields based on the responses from local node and rest of the
+// networks. Then the status field is later parsed to get the overall status fields
 func (w *watchdog) Start(ctx context.Context) error {
 	w.status.started = time.Now()
 
@@ -218,6 +240,17 @@ func (w *watchdog) Start(ctx context.Context) error {
 			}
 		}
 
+		// Height increased after it was considered as healthy?
+		if w.status.lastHeight >= nodeStatistics.BlockHeight {
+			msg := fmt.Sprintf("Node did not produce any block since last check. Last known block is %d", nodeStatistics.BlockHeight)
+			w.status.PushEvent(msg)
+			w.logger.Info(msg)
+			w.status.blockProductionStopped = time.Now()
+			continue
+		}
+
+		w.status.lastHeight = nodeStatistics.BlockHeight
+
 		w.status.healthy = time.Now()
 		if w.status.catchUp.IsZero() {
 			msg := fmt.Sprintf("Node caught rest of the network up at block %d", nodeStatistics.BlockHeight)
@@ -229,6 +262,7 @@ func (w *watchdog) Start(ctx context.Context) error {
 			w.status.PushEvent(msg)
 			w.logger.Info(msg)
 		}
+
 	}
 }
 

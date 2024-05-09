@@ -22,6 +22,8 @@ type visor struct {
 	stderrLogger *zap.Logger
 	commandStop  context.CancelFunc
 
+	extraLogs logging.ExtraInfo
+
 	vegavisorBinary string
 	vegavisorHome   string
 }
@@ -40,6 +42,7 @@ func NewVisor(
 
 		vegavisorBinary: vegavisorBinary,
 		vegavisorHome:   vegavisorHome,
+		extraLogs:       logging.NewExtraInfo(),
 	}, nil
 }
 
@@ -47,8 +50,12 @@ func (v *visor) Name() string {
 	return "vegavisor"
 }
 
-func (v *visor) Result() map[string]interface{} {
-	return map[string]interface{}{}
+const KeyVisorExtraLogLines = "visor-extra-log-lines"
+
+func (v *visor) Result() ComponentResults {
+	return ComponentResults{
+		KeyVisorExtraLogLines: v.extraLogs.String(),
+	}
 }
 
 // Healthy implements Component.
@@ -127,13 +134,13 @@ func (v *visor) Start(ctx context.Context) error {
 	defer stderr.Close()
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if err := logging.StreamLogs(stream, v.stdoutLogger, &v.extraLogs); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			v.mainLogger.Error("failed to stream visor stdout", zap.Error(err))
 		}
 	}(stdout)
 
 	go func(stream io.Reader) {
-		if err := logging.StreamLogs(stream, v.stdoutLogger); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		if err := logging.StreamLogs(stream, v.stdoutLogger, &v.extraLogs); err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
 			v.mainLogger.Error("failed to stream visor stdout", zap.Error(err))
 		}
 	}(stderr)
