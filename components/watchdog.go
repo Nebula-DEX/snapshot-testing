@@ -56,7 +56,7 @@ func (lns localNodeStatus) healthyStatus() HealthyStatus {
 }
 
 func (lns localNodeStatus) unhealthyReason() string {
-	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.lagging) {
+	if !lns.catchUp.IsZero() && lns.healthy.After(lns.lagging) {
 		return ""
 	}
 
