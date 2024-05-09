@@ -56,12 +56,12 @@ func (lns localNodeStatus) healthyStatus() HealthyStatus {
 }
 
 func (lns localNodeStatus) unhealthyReason() string {
-	if !lns.catchUp.IsZero() && lns.healthy.After(lns.lagging) {
-		return ""
-	}
-
 	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.blockProductionStopped) {
 		return fmt.Sprintf("Node stopped producing blocks at block %d", lns.lastHeight)
+	}
+
+	if !lns.catchUp.IsZero() && lns.healthy.After(lns.lagging) {
+		return ""
 	}
 
 	if !lns.catchUp.IsZero() && !lns.healthy.After(lns.lagging) {
