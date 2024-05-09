@@ -4,22 +4,33 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"sync"
 
 	"go.uber.org/zap"
 )
 
-const AppendExtraLogLinesAfterFailureFoundCount = 3
+const (
+	AppendExtraLogLinesAfterFailureFoundCount = 3
+
+	Unlimited = math.MaxInt
+)
 
 type ExtraInfo struct {
 	mut      sync.Mutex
 	logLines []string
 }
 
-func (ei *ExtraInfo) String() string {
-	return strings.Join(ei.logLines, "\n")
+func (ei *ExtraInfo) String(lengthLimit int) string {
+	result := strings.Join(ei.logLines, "\n")
+	if len(result) < lengthLimit {
+		return result
+	}
+
+	return fmt.Sprintf("%s ...", result[:lengthLimit])
 }
+
 func (ei ExtraInfo) Empty() bool {
 	return len(ei.logLines) < 1
 }

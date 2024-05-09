@@ -54,7 +54,7 @@ const KeyVisorExtraLogLines = "visor-extra-log-lines"
 
 func (v *visor) Result() ComponentResults {
 	return ComponentResults{
-		KeyVisorExtraLogLines: v.extraLogs.String(),
+		KeyVisorExtraLogLines: v.extraLogs.String(512),
 	}
 }
 
