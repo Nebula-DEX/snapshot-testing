@@ -100,8 +100,14 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to run test components: %w", err)
 	}
 
+	snapshotTestingResults := components.MergeResults(
+		postgresql.Result(),
+		watchdog.Result(),
+		visor.Result(),
+	)
+
 	mainLogger.Sugar().Infof("Snapshot testing finished after %s", duration.String())
-	jsonResults, err := json.MarshalIndent(watchdog.Result(), "", "    ")
+	jsonResults, err := json.MarshalIndent(snapshotTestingResults, "", "    ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal snapshot-testing results into JSON: %w", err)
 	}

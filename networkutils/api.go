@@ -218,16 +218,18 @@ func isRESTEndpointHealthy(logger *zap.Logger, networkHeadHeight uint64, restURL
 		}
 	}
 
-	timeDiff := statistics.CurrentTime.Sub(statistics.VegaTime)
-	if timeDiff > HealthyTimeThreshold {
-		logger.Sugar().Infof(
-			"The %s endpoint unhealthy: time lag is %s, only %s allowed",
-			restURL,
-			timeDiff.String(),
-			HealthyTimeThreshold.String(),
-		)
-		return false
-	}
+	// We do not check time diff here, because we want run test even if the network is not producing blocks.
+	// 		It can give us extra information
+	// timeDiff := statistics.CurrentTime.Sub(statistics.VegaTime)
+	// if timeDiff > HealthyTimeThreshold {
+	// 	logger.Sugar().Infof(
+	// 		"The %s endpoint unhealthy: time lag is %s, only %s allowed",
+	// 		restURL,
+	// 		timeDiff.String(),
+	// 		HealthyTimeThreshold.String(),
+	// 	)
+	// 	return false
+	// }
 
 	logger.Sugar().Infof("The %s endpoint is healthy", restURL)
 
