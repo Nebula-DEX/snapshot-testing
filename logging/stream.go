@@ -81,5 +81,6 @@ func foundFailure(logLine string) bool {
 	return strings.Contains(logLine, "panic") ||
 		strings.Contains(logLine, "consensus failure") ||
 		strings.Contains(logLine, "invalid memory") ||
-		strings.Contains(logLine, "wrong block.header.lastresultshash")
+		strings.Contains(logLine, "wrong block.header.lastresultshash") ||
+		strings.Contains(logLine, "wrong block.header.apphash")
 }
