@@ -434,8 +434,37 @@ func (n *Network) downloadGenesis(tendermintHome string) error {
 	return nil
 }
 
-func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
+func (n *Network) getHealthyBootstrapPeers() ([]string, error) {
+	result := []string{}
 
+	n.logger.Info("Getting all healthy bootstrap peers for the network")
+
+	networkHeadHeight, err := n.getNetworkHeight()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get network height: %w", err)
+	}
+
+	for _, peer := range n.conf.BootstrapPeers {
+		if !isRESTEndpointHealthy(n.logger, networkHeadHeight, peer.CoreREST) {
+			continue
+		}
+
+		result = append(result, peer.Endpoint)
+	}
+
+	if len(result) < 1 {
+		return nil, fmt.Errorf("no healthy bootstrap peer found")
+	}
+
+	// Vega expect at least two peers, but for some reasons it accepts two the same peers
+	if len(result) == 1 {
+		result = append(result, result[0])
+	}
+
+	return result, nil
+}
+
+func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 	if err := n.downloadVegaBinary(); err != nil {
 		return fmt.Errorf("failed to download vega binary: %w", err)
 	}
@@ -474,6 +503,11 @@ func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 		overrideVersion = n.conf.BinaryVersionOverride
 	}
 
+	bootstrapPeers, err := n.getHealthyBootstrapPeers()
+	if err != nil {
+		return fmt.Errorf("failed to get healthy bootstrap peers: %w", err)
+	}
+
 	n.logger.Sugar().Info("")
 	n.logger.Sugar().Info("===================================================")
 	n.logger.Sugar().Info("Initializing local node with the following details:")
@@ -487,7 +521,7 @@ func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 	n.logger.Sugar().Infof("Tendermint home: %s", n.pathManager.TendermintHome())
 	n.logger.Sugar().Infof("Snapshot for restart: %#v", restartSnapshot)
 	n.logger.Sugar().Infof("RPCPeers: %v", rpcPeers)
-	n.logger.Sugar().Infof("Bootstrap peers: %v", n.conf.BootstrapPeers)
+	n.logger.Sugar().Infof("Bootstrap peers: %v", bootstrapPeers)
 	n.logger.Sugar().Infof("Genesis file: %v", n.conf.GenesisURL)
 	n.logger.Sugar().Infof("Seeds: %v", n.conf.Seeds)
 	n.logger.Sugar().Infof("Network version: %s", appVersion)
@@ -527,7 +561,7 @@ func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 	}
 
 	n.logger.Info("Updating data-node config")
-	if err := updateDataNodeConfig(n.pathManager.VegaHome(), n.conf.BootstrapPeers, psqlCreds); err != nil {
+	if err := updateDataNodeConfig(n.pathManager.VegaHome(), bootstrapPeers, psqlCreds); err != nil {
 		return fmt.Errorf("failed to update data-node config: %w", err)
 	}
 
