@@ -23,6 +23,9 @@ type ExtraInfo struct {
 }
 
 func (ei *ExtraInfo) String(lengthLimit int) string {
+	ei.mut.Lock()
+	defer ei.mut.Unlock()
+
 	result := strings.Join(ei.logLines, "\n")
 	if len(result) < lengthLimit {
 		return result
@@ -31,7 +34,10 @@ func (ei *ExtraInfo) String(lengthLimit int) string {
 	return fmt.Sprintf("%s ...", result[:lengthLimit])
 }
 
-func (ei ExtraInfo) Empty() bool {
+func (ei *ExtraInfo) Empty() bool {
+	ei.mut.Lock()
+	defer ei.mut.Unlock()
+
 	return len(ei.logLines) < 1
 }
 
@@ -82,5 +88,6 @@ func foundFailure(logLine string) bool {
 		strings.Contains(logLine, "consensus failure") ||
 		strings.Contains(logLine, "invalid memory") ||
 		strings.Contains(logLine, "wrong block.header.lastresultshash") ||
-		strings.Contains(logLine, "wrong block.header.apphash")
+		strings.Contains(logLine, "wrong block.header.apphash") ||
+		strings.Contains(logLine, "is too high, the height of the last processed block")
 }

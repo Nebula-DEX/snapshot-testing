@@ -31,7 +31,7 @@ type Network struct {
 	DataNodesREST  []string
 	RPCPeers       []EndpointWithREST
 	Seeds          []string
-	BootstrapPeers []string
+	BootstrapPeers []EndpointWithREST
 }
 
 func (n Network) Validate() error {
