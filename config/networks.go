@@ -35,7 +35,7 @@ func NetworkConfigForEnvironmentName(envName string) (*Network, error) {
 var (
 	Mainnet = Network{
 		ArtifactsRepository: "vegaprotocol/vega",
-		BinaryVersionOverride: "v0.75.8-fix.1"
+		BinaryVersionOverride: "v0.75.8-fix.1",
 		GenesisURL:          "https://raw.githubusercontent.com/vegaprotocol/networks/master/mainnet1/genesis.json",
 		DataNodesREST: []string{
 			"https://api0.vega.community",
