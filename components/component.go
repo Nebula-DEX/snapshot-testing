@@ -4,6 +4,11 @@ import (
 	"context"
 )
 
+const (
+	ResultKeySnapshotMin string = "snapshot-min"
+	ResultKeySnapshotMax string = "snapshot-max"
+)
+
 type ComponentResults map[string]any
 
 type Component interface {
