@@ -100,11 +100,19 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to run test components: %w", err)
 	}
 
+	// Run post-snapshot-testing actions
+	snapshotMin, snapshotMax, err := networkutils.LocalSnapshotsRange(&pathManager)
+	if err != nil {
+		return fmt.Errorf("failed to get snapshot range: %w", err)
+	}
+
 	snapshotTestingResults := components.MergeResults(
 		postgresql.Result(),
 		watchdog.Result(),
 		visor.Result(),
 	)
+	snapshotTestingResults["snapshot-min"] = snapshotMin
+	snapshotTestingResults["snapshot-max"] = snapshotMax
 
 	mainLogger.Sugar().Infof("Snapshot testing finished after %s", duration.String())
 	jsonResults, err := json.MarshalIndent(snapshotTestingResults, "", "    ")
