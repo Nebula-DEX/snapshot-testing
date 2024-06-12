@@ -36,7 +36,7 @@ var (
 	Mainnet = Network{
 		ArtifactsRepository: "vegaprotocol/vega",
 		// BinaryVersionOverride: "v0.75.8-fix.2",
-		GenesisURL:          "https://raw.githubusercontent.com/vegaprotocol/networks/master/mainnet1/genesis.json",
+		GenesisURL: "https://raw.githubusercontent.com/vegaprotocol/networks/master/mainnet1/genesis.json",
 		DataNodesREST: []string{
 			"https://api0.vega.community",
 			"https://api1.vega.community",

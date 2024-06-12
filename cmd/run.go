@@ -3,17 +3,19 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"time"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+
 	"github.com/vegaprotocol/snapshot-testing/clients/docker"
 	"github.com/vegaprotocol/snapshot-testing/components"
 	"github.com/vegaprotocol/snapshot-testing/config"
 	"github.com/vegaprotocol/snapshot-testing/logging"
 	"github.com/vegaprotocol/snapshot-testing/networkutils"
-	"go.uber.org/zap"
 )
 
 var testDuration time.Duration
@@ -46,6 +48,14 @@ func runSnapshotTesting(duration time.Duration) error {
 	}
 
 	if err := prepareNetwork(mainLogger.Named("prepare-network"), pathManager, *networkConfig, config.DefaultCredentials); err != nil {
+		if shouldSkipFailure(err) {
+			snapshotTestingResults := map[string]any{
+				"should-skip-failure": true,
+			}
+			if err := writeResult(duration, mainLogger, snapshotTestingResults, pathManager); err != nil {
+				return err
+			}
+		}
 		return fmt.Errorf("failed to setup local network: %w", err)
 	}
 
@@ -113,7 +123,16 @@ func runSnapshotTesting(duration time.Duration) error {
 	)
 	snapshotTestingResults["snapshot-min"] = snapshotMin
 	snapshotTestingResults["snapshot-max"] = snapshotMax
+	snapshotTestingResults["should-skip-failure"] = false
 
+	return writeResult(duration, mainLogger, snapshotTestingResults, pathManager)
+}
+
+func shouldSkipFailure(err error) bool {
+	return environment == config.NetworkNameDevnet1 && (errors.Is(err, networkutils.ErrNoHealthyNodeFound) || errors.Is(err, networkutils.ErrNoSnapshotForRestartFound))
+}
+
+func writeResult(duration time.Duration, mainLogger *zap.Logger, snapshotTestingResults components.ComponentResults, pathManager networkutils.PathManager) error {
 	mainLogger.Sugar().Infof("Snapshot testing finished after %s", duration.String())
 	jsonResults, err := json.MarshalIndent(snapshotTestingResults, "", "    ")
 	if err != nil {
@@ -124,6 +143,5 @@ func runSnapshotTesting(duration time.Duration) error {
 	if err := os.WriteFile(pathManager.Results(), jsonResults, os.ModePerm); err != nil {
 		return fmt.Errorf("failed to write results to %s: %w", pathManager.Results(), err)
 	}
-
 	return nil
 }

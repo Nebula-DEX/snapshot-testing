@@ -1,6 +1,7 @@
 package networkutils
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,9 +9,10 @@ import (
 	"slices"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/vegaprotocol/snapshot-testing/config"
 	"github.com/vegaprotocol/snapshot-testing/tools"
-	"go.uber.org/zap"
 )
 
 const (
@@ -20,6 +22,11 @@ const (
 
 const (
 	BinariesFolder = "bins"
+)
+
+var (
+	ErrNoHealthyNodeFound        = errors.New("no healthy rest endpoint found")
+	ErrNoSnapshotForRestartFound = errors.New("no snapshot for restart found")
 )
 
 type Network struct {
@@ -106,7 +113,7 @@ func (n *Network) getNetworkHeight() (uint64, error) {
 	}
 
 	if len(heights) == 0 {
-		return 0, fmt.Errorf("no healthy rest endpoint found")
+		return 0, ErrNoHealthyNodeFound
 	}
 
 	maxHeight := slices.Max(heights)
@@ -203,7 +210,7 @@ func (n *Network) getHealthyRESTEndpoints() ([]string, error) {
 	}
 
 	if len(healthyNodes) == 0 {
-		return nil, fmt.Errorf("no healthy rest endpoint found")
+		return nil, ErrNoHealthyNodeFound
 	}
 
 	n.logger.Sugar().Infof("All healthy REST endpoints: %v", healthyNodes)
@@ -356,7 +363,7 @@ func (n *Network) getRestartSnapshot() (*Snapshot, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("no snapshot for restart found")
+	return nil, ErrNoSnapshotForRestartFound
 }
 
 func (n *Network) initLocally(force bool) error {
