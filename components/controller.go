@@ -9,6 +9,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	ComponentFailureErr error = fmt.Errorf("one or more tests components failed")
+)
+
 func Run(ctx context.Context, pathManager networkutils.PathManager, mainLogger *zap.Logger, components []Component) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -69,7 +73,7 @@ func Run(ctx context.Context, pathManager networkutils.PathManager, mainLogger *
 		}
 
 		if !allComponentsHealthy {
-			return fmt.Errorf("one or more test components failed")
+			return ComponentFailureErr
 		}
 	}
 }

@@ -3,9 +3,14 @@ package networkutils
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/vegaprotocol/snapshot-testing/tools"
+)
+
+var (
+	SnapshotDatabaseDoesNotExistErr error = fmt.Errorf("snapshot database does not exist on filesystem")
 )
 
 type CliSnapshot struct {
@@ -30,6 +35,9 @@ func LocalSnapshotsRange(pathManager *PathManager) (int64, int64, error) {
 
 		return nil
 	}); err != nil {
+		if strings.Contains(err.Error(), "file does not exist") {
+			return 0, 0, SnapshotDatabaseDoesNotExistErr
+		}
 		return 0, 0, fmt.Errorf("failed to get snapshot from the cli: %w", err)
 	}
 
