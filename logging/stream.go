@@ -89,5 +89,6 @@ func foundFailure(logLine string) bool {
 		strings.Contains(logLine, "invalid memory") ||
 		strings.Contains(logLine, "wrong block.header.lastresultshash") ||
 		strings.Contains(logLine, "wrong block.header.apphash") ||
-		strings.Contains(logLine, "is too high, the height of the last processed block")
+		strings.Contains(logLine, "is too high, the height of the last processed block") ||
+		strings.Contains(logLine, "failed to load history")
 }
