@@ -106,14 +106,27 @@ func runSnapshotTesting(duration time.Duration) error {
 	testCtx, testCancel := context.WithTimeout(context.Background(), duration)
 	defer testCancel()
 
-	if err := components.Run(testCtx, pathManager, mainLogger.Named("controller"), testsComponents); err != nil {
-		return fmt.Errorf("failed to run test components: %w", err)
+	err = components.Run(testCtx, pathManager, mainLogger.Named("controller"), testsComponents)
+	componentsFailed := false
+	if err != nil {
+		componentsFailed = true
+		if errors.Is(err, components.ComponentFailureErr) {
+			// component failed but it is expected and We still want to have results
+			mainLogger.Error("failed to run test components", zap.Error(err))
+		} else {
+			return fmt.Errorf("failed to run test components: %w", err)
+		}
 	}
 
 	// Run post-snapshot-testing actions
 	snapshotMin, snapshotMax, err := networkutils.LocalSnapshotsRange(&pathManager)
 	if err != nil {
-		return fmt.Errorf("failed to get snapshot range: %w", err)
+		// There is expected error when network did not start, snapshot db is empty or not created
+		if componentsFailed && errors.Is(err, networkutils.SnapshotDatabaseDoesNotExistErr) {
+			mainLogger.Error("failed to get snapshot range", zap.Error(err))
+		} else {
+			return fmt.Errorf("failed to get snapshot range: %w", err)
+		}
 	}
 
 	snapshotTestingResults := components.MergeResults(
