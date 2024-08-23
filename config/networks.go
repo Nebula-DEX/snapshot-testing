@@ -116,27 +116,29 @@ var (
 		DataNodesREST: []string{
 			"https://api.n00.stagnet1.vega.rocks",
 			"https://api.n05.stagnet1.vega.rocks",
-			"https://api.n06.stagnet1.vega.rocks",
 		},
 		RPCPeers: []EndpointWithREST{
+			{CoreREST: "https://be.stagnet1.vega.rocks", Endpoint: "be.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n00.stagnet1.vega.rocks", Endpoint: "n00.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n01.stagnet1.vega.rocks", Endpoint: "n01.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n02.stagnet1.vega.rocks", Endpoint: "n02.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n03.stagnet1.vega.rocks", Endpoint: "n03.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n04.stagnet1.vega.rocks", Endpoint: "n04.stagnet1.vega.rocks:26657"},
 			{CoreREST: "https://n05.stagnet1.vega.rocks", Endpoint: "n05.stagnet1.vega.rocks:26657"},
-			{CoreREST: "https://n06.stagnet1.vega.rocks", Endpoint: "n06.stagnet1.vega.rocks:26657"},
 		},
 		Seeds: []string{
-			"6a473fa0c9571deb3c494c9ac64d4dda41adde3f@n01.stagnet1.vega.rocks:26656",
-			"ca6e178a32324e07893049f1090077b520912803@n02.stagnet1.vega.rocks:26656",
-			"49d9e6ee15e249c21d35ebe46f72f1ac631b0586@n03.stagnet1.vega.rocks:26656",
-			"eea179e9eef3d760c7d6cc675d6a374347806e62@n04.stagnet1.vega.rocks:26656",
+			"ccdaddd1099c3338f79d732e4b4d75514d8805d9@be.stagnet1.vega.rocks:26656",
+			"71a8538c31b8311034eb01d1ec2511f477e62144@n00.stagnet1.vega.rocks:26656",
+			"0215d9af2bab228218d1cf4376d4fa4efc0d1dc8@n01.stagnet1.vega.rocks:26656",
+			"1ea3d6b578d9f186ab0bc087ae114be1eb6862fe@n02.stagnet1.vega.rocks:26656",
+			"bea26a4a9776c7d0e41a33c574e4bd5b9256d0c9@n03.stagnet1.vega.rocks:26656",
+			"3b739f5847a0abff3b86b5240ba46f5b6b9673a9@n04.stagnet1.vega.rocks:26656",
+			"9131eef85b12b0ac37bb1e4a934ff18ca7461edc@n05.stagnet1.vega.rocks:26656",
 		},
+
 		BootstrapPeers: []EndpointWithREST{
-			{CoreREST: "https://n00.stagnet1.vega.rocks", Endpoint: "/dns/n00.stagnet1.vega.rocks/tcp/4001/ipfs/12D3KooWJ5HxcmfVgstPNFquf8DTwAJg5BWmvZ1oLsqqY3g1ygDG"},
-			{CoreREST: "https://n05.stagnet1.vega.rocks", Endpoint: "/dns/n05.stagnet1.vega.rocks/tcp/4001/ipfs/12D3KooWHNyJBuN9GmYp23FAdMbL3nmwe5DzixFNL8d4oBTMzxag"},
-			{CoreREST: "https://n06.stagnet1.vega.rocks", Endpoint: "/dns/n06.stagnet1.vega.rocks/tcp/4001/ipfs/12D3KooWQpceAbYaEaas65tEt8CJofHgjRPANaojwA7oaQApHTvB"},
+			{CoreREST: "https://n00.stagnet1.vega.rocks", Endpoint: "/dns/n00.stagnet1.vega.rocks/tcp/4001/ipfs/12D3KooWP8YaH8ohx44bGyXWxas6wqiCn1cFRidxR3yPrFVd3ZjP"},
+			{CoreREST: "https://n05.stagnet1.vega.rocks", Endpoint: "/dns/n05.stagnet1.vega.rocks/tcp/4001/ipfs/12D3KooWAzYpdr3oeXaQ1CWmFystwi7M2pLrPLpRvD2E1XzjSjHG"},
 		},
 	}
 
