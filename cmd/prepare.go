@@ -21,7 +21,7 @@ var prepareCmd = &cobra.Command{
 
 		// We do not want to log this to file
 		stdoutOnlyLogger := logging.CreateLogger(zap.InfoLevel, logging.DoNotLogToFile, true, true)
-		networkConfig, err := config.NetworkConfigForEnvironmentName(environment)
+		networkConfig, err := config.NetworkConfigForGivenInput(environment, configPath, workDir)
 		if err != nil {
 			stdoutOnlyLogger.Fatal("failed to get network config", zap.Error(err))
 		}

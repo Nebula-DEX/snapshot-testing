@@ -1,8 +1,18 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/pelletier/go-toml"
+)
 
 const (
+	NetworkNameNebula        string = "nebula"
 	NetworkNameMainnet       string = "mainnet"
 	NetworkNameFairground    string = "fairground"
 	NetworkNameStagnet1      string = "stagnet1"
@@ -13,7 +23,63 @@ const (
 	NetworkValidatorsTestnet string = "validators-testnet"
 )
 
-func NetworkConfigForEnvironmentName(envName string) (*Network, error) {
+func NetworkConfigForGivenInput(envName string, configPath string, workDir string) (*Network, error) {
+	if configPath == "" {
+		return networkConfigForEnvironmentName(envName)
+	}
+
+	var err error
+	if strings.HasPrefix(configPath, "http") {
+		configPath, err = downloadConfigFile(configPath, workDir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to config download file: %w", err)
+		}
+	}
+
+	return loadConfigFromLocalFile(configPath)
+}
+
+func loadConfigFromLocalFile(path string) (*Network, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	netCfg := &Network{}
+	if err := toml.Unmarshal(data, netCfg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return netCfg, nil
+}
+
+func downloadConfigFile(uri string, workDir string) (string, error) {
+	outputFile := filepath.Join(workDir, "config.toml")
+
+	out, err := os.Create(outputFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to create the %s file: %w", outputFile, err)
+	}
+	defer out.Close()
+
+	resp, err := http.Get(uri)
+	if err != nil {
+		return "", fmt.Errorf("failed to get response from %s: %w", uri, err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("invalid response code from %s: expected %d, got %d", uri, http.StatusOK, resp.StatusCode)
+	}
+
+	if _, err := io.Copy(out, resp.Body); err != nil {
+		return "", fmt.Errorf("cannot copy content of downloaded file into output: %w", err)
+	}
+
+	return outputFile, nil
+}
+
+func networkConfigForEnvironmentName(envName string) (*Network, error) {
 	switch envName {
 	case NetworkNameMainnet:
 		return &Mainnet, nil

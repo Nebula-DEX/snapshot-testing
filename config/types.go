@@ -19,19 +19,21 @@ type ContainerConfig struct {
 }
 
 type EndpointWithREST struct {
-	CoreREST string // Usually used for health-check
-	Endpoint string
+	// Usually used for health-check
+	CoreREST string `toml:"core_rest"`
+	Endpoint string `toml:"endpoint"`
 }
 
 type Network struct {
-	ArtifactsRepository   string
-	GenesisURL            string
-	BinaryVersionOverride string // This is used when We deploy a patch to the mainnet
+	ArtifactsRepository string `toml:"artifacts_repository"`
+	GenesisURL          string `toml:"genesis_url"`
+	// This is used when We deploy a patch to the mainnet
+	BinaryVersionOverride string `toml:"binary_version_override"`
 
-	DataNodesREST  []string
-	RPCPeers       []EndpointWithREST
-	Seeds          []string
-	BootstrapPeers []EndpointWithREST
+	DataNodesREST  []string           `toml:"data_nodes_rest"`
+	RPCPeers       []EndpointWithREST `toml:"rpc_peers"`
+	Seeds          []string           `toml:"seeds"`
+	BootstrapPeers []EndpointWithREST `toml:"bootstrap_peers"`
 }
 
 func (n Network) Validate() error {
