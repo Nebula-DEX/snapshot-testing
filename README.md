@@ -40,6 +40,7 @@ The tool supports the following flags:
   - `stagnet1`
   - `devnet1`
 - `--work-dir`: Local folder where all temporary files, configs, binaries, and logs are stored.
+- `--config-path`: Path to the config.toml file. It can be URL or local file-path. See congig.toml in this repository for the example config
 
 ## Examples
 
