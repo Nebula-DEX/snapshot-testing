@@ -1,0 +1,49 @@
+# This is an example config
+
+artifacts_repository = "vegaprotocol/vega"
+genesis_url = "GENESIS URL HERE"
+binary_version_override = "v0.78.4-patch.1"
+
+data_nodes_rest = [
+    "https://api0.example.com",
+	"https://api1.example.com",
+	"https://api2.example.com",
+]
+
+seeds = [
+    "deadbeeff332e9b26cad5e79a8decbfdc001c0de@1.2.3.4:26656",
+	"deadbeef397c7665b41c99a24da3bfc8c001c0de@5.6.7.8:26656",
+	"deadbeef2d62e252d3ee4cbe691e38edc001c0de@9.10.11.12:26656",
+	"deadbeef907bbe238dff50f229200ad3c001c0de@api0.example.com:26656",
+	"deadbeef187d7b9e0a7c358f9bbf1aebc001c0de@api1.example.com:26656",
+	"deadbeef5af99f70c715088f8362eb1dc001c0de@api2.example.com:26656",
+]
+
+[[rpc_peers]]
+    core_rest = "http://1.2.3.4:3003"
+    endpoint = "1.2.3.4:26657"
+[[rpc_peers]]
+    core_rest = "http://5.6.7.8:3003"
+    endpoint = "5.6.7.8:26657"
+[[rpc_peers]]
+    core_rest = "http://9.10.11.12:3003"
+    endpoint = "9.10.11.12:26657"
+[[rpc_peers]]
+    core_rest = "https://api0.example.com"
+    endpoint = "api0.example.com:26657"
+[[rpc_peers]]
+    core_rest = "https://api1.example.com"
+    endpoint = "api1.example.com:26657"
+[[rpc_peers]]
+    core_rest = "https://api2.example.com"
+    endpoint = "api2.example.com:26657"
+
+[[bootstrap_peers]]
+    core_rest = "https://api0.example.com"
+    endpoint = "/dns/api0.neb.exchange/tcp/4001/ipfs/12D3KooWBEiFW25wWBdoDZq6KTLbDywxgha12345678912345678"
+[[bootstrap_peers]]
+    core_rest = "https://api1.example.com"
+    endpoint = "/dns/api1.neb.exchange/tcp/4001/ipfs/12D3KooWJ1druRg7jiu9DGJvtKGzPspGGKm12345678912345678"
+[[bootstrap_peers]]
+    core_rest = "https://api2.example.com"
+    endpoint = "/dns/api2.neb.exchange/tcp/4001/ipfs/12D3KooWRGeS5xiJK54ddWaYXy4VxHGzLcN12345678912345678"

@@ -42,7 +42,7 @@ func runSnapshotTesting(duration time.Duration) error {
 
 	// We do not want to log this to file
 	mainLogger := logging.CreateLogger(zap.InfoLevel, pathManager.LogFile("main.log"), true, true)
-	networkConfig, err := config.NetworkConfigForEnvironmentName(environment)
+	networkConfig, err := config.NetworkConfigForGivenInput(environment, configPath, workDir)
 	if err != nil {
 		return fmt.Errorf("failed to get network config: %w", err)
 	}
