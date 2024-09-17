@@ -9,7 +9,7 @@ data_nodes_rest = [
 	"https://api1.example.com",
 	"https://api2.example.com",
 ]
-deadbeef
+
 seeds = [
     "deadbeeff332e9b26cad5e79a8decbfdc001c0de@1.2.3.4:26656",
 	"deadbeef397c7665b41c99a24da3bfc8c001c0de@5.6.7.8:26656",
