@@ -26,7 +26,7 @@ var prepareCmd = &cobra.Command{
 			stdoutOnlyLogger.Fatal("failed to get network config", zap.Error(err))
 		}
 
-		if err := prepareNetwork(stdoutOnlyLogger, pathManager, *networkConfig, config.DefaultCredentials); err != nil {
+		if err := prepareNetwork(stdoutOnlyLogger, pathManager, *networkConfig, config.DefaultCredentials, externalAddress); err != nil {
 			stdoutOnlyLogger.Fatal("failed to setup local network", zap.Error(err))
 		}
 
@@ -42,13 +42,14 @@ func prepareNetwork(
 	pathManager networkutils.PathManager,
 	networkConfig config.Network,
 	postgreSQLCredentials config.PostgreSQLCreds,
+	externalAddress string,
 ) error {
 	network, err := networkutils.NewNetwork(logger, networkConfig, pathManager)
 	if err != nil {
 		return fmt.Errorf("failed to create network utils: %w", err)
 	}
 
-	if err := network.SetupLocalNode(postgreSQLCredentials); err != nil {
+	if err := network.SetupLocalNode(postgreSQLCredentials, externalAddress); err != nil {
 		return fmt.Errorf("failed to setup local node: %w", err)
 	}
 

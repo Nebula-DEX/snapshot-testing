@@ -471,7 +471,7 @@ func (n *Network) getHealthyBootstrapPeers() ([]string, error) {
 	return result, nil
 }
 
-func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
+func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds, externalAddress string) error {
 	if err := n.downloadVegaBinary(); err != nil {
 		return fmt.Errorf("failed to download vega binary: %w", err)
 	}
@@ -563,6 +563,7 @@ func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 		rpcPeers,
 		n.conf.Seeds,
 		*restartSnapshot,
+		externalAddress,
 	); err != nil {
 		return fmt.Errorf("failed to update tendermint config: %w", err)
 	}
