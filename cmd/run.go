@@ -47,7 +47,12 @@ func runSnapshotTesting(duration time.Duration) error {
 		return fmt.Errorf("failed to get network config: %w", err)
 	}
 
-	if err := prepareNetwork(mainLogger.Named("prepare-network"), pathManager, *networkConfig, config.DefaultCredentials); err != nil {
+	if err := prepareNetwork(
+		mainLogger.Named("prepare-network"),
+		pathManager,
+		*networkConfig,
+		config.DefaultCredentials,
+		externalAddress); err != nil {
 		if shouldSkipFailure(err) {
 			snapshotTestingResults := map[string]any{
 				"should-skip-failure": true,

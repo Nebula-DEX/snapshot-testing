@@ -3,6 +3,7 @@ package networkutils
 import (
 	"fmt"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/vegaprotocol/snapshot-testing/config"
@@ -75,9 +76,10 @@ func updateVegaConfig(vegaHome string, workDir string, startSnapshot Snapshot) e
 	return nil
 }
 
-func updateTendermintConfig(tendermintHome string, rpcPeers []string, seeds []string, snapshot Snapshot) error {
+func updateTendermintConfig(tendermintHome string, rpcPeers []string, seeds []string, snapshot Snapshot, externalAddress string) error {
 	configFilePath := filepath.Join(tendermintHome, "config", "config.toml")
 	newConfigValues := map[string]interface{}{
+		"log_level":              "debug",
 		"p2p.seeds":              strings.Join(seeds, ","),
 		"p2p.pex":                true,
 		"statesync.enable":       true,
@@ -85,6 +87,19 @@ func updateTendermintConfig(tendermintHome string, rpcPeers []string, seeds []st
 		"statesync.trust_period": "672h0m0s",
 		"statesync.trust_height": snapshot.BlockHeight,
 		"statesync.trust_hash":   snapshot.BlockHash,
+		"p2p.addr_book_strict":   false,
+		"p2p.seed_mode":          true,
+		"p2p.allow_duplicate_ip": true,
+	}
+
+	if len(externalAddress) > 0 {
+		withPortRegex := regexp.MustCompile(`.*:\d{1,5}$`)
+		if !withPortRegex.MatchString(externalAddress) {
+			// add port if it is missing in the given address
+			externalAddress = fmt.Sprintf("%s:26656", externalAddress)
+		}
+
+		newConfigValues["p2p.external_address"] = externalAddress
 	}
 
 	if err := tools.UpdateConfig(configFilePath, "toml", newConfigValues); err != nil {

@@ -3,9 +3,10 @@ package cmd
 import "github.com/spf13/cobra"
 
 var (
-	workDir     string
-	environment string
-	configPath  string
+	workDir         string
+	environment     string
+	configPath      string
+	externalAddress string
 
 	rootCmd = &cobra.Command{
 		Use:   "snapshot-testing",
@@ -41,6 +42,13 @@ func init() {
 		"",
 		"the config-file path for the network, if not empty the --environment flag is ignored(may be local or remote file (with https://))",
 	)
+	rootCmd.PersistentFlags().StringVar(
+		&externalAddress,
+		"external-address",
+		"",
+		"external address that needs to be set in the tendermint config when the node is running behind the nat",
+	)
+
 	rootCmd.AddCommand(prepareCmd)
 	rootCmd.AddCommand(runCmd)
 }
