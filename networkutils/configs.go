@@ -90,14 +90,13 @@ func updateTendermintConfig(tendermintHome string, rpcPeers []string, seeds []st
 		"p2p.addr_book_strict":   false,
 		"p2p.seed_mode":          true,
 		"p2p.allow_duplicate_ip": true,
-		"p2p.laddr":              "tcp://0.0.0.0:36656",
 	}
 
 	if len(externalAddress) > 0 {
 		withPortRegex := regexp.MustCompile(`.*:\d{1,5}$`)
 		if !withPortRegex.MatchString(externalAddress) {
 			// add port if it is missing in the given address
-			externalAddress = fmt.Sprintf("%s:36656", externalAddress)
+			externalAddress = fmt.Sprintf("%s:26656", externalAddress)
 		}
 
 		newConfigValues["p2p.external_address"] = externalAddress
