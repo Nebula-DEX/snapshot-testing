@@ -3,6 +3,7 @@ package networkutils
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -41,17 +42,20 @@ type Network struct {
 
 	appVersion string
 	height     uint64
+
+	restHTTPClient *http.Client
 }
 
-func NewNetwork(logger *zap.Logger, conf config.Network, pm PathManager) (*Network, error) {
+func NewNetwork(logger *zap.Logger, conf config.Network, pm PathManager, restHTTPClient *http.Client) (*Network, error) {
 	if err := conf.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid config for network: %w", err)
 	}
 
 	return &Network{
-		logger:      logger,
-		conf:        conf,
-		pathManager: pm,
+		logger:         logger,
+		conf:           conf,
+		pathManager:    pm,
+		restHTTPClient: restHTTPClient,
 	}, nil
 }
 
@@ -73,7 +77,7 @@ func (n *Network) getHealthyRPCPeers() ([]string, error) {
 			n.logger.Sugar().Infof("The %s peer does not have core REST assigned. Skipping", rpcPeer.Endpoint)
 			continue
 		}
-		if isRESTEndpointHealthy(n.logger, networkHeadHeight, rpcPeer.CoreREST) {
+		if isRESTEndpointHealthy(n.restHTTPClient, n.logger, networkHeadHeight, rpcPeer.CoreREST) {
 			n.logger.Sugar().Infof("The %s RPC peer is healthy", rpcPeer.Endpoint)
 			healthyPeers = append(healthyPeers, rpcPeer.Endpoint)
 		}
@@ -100,7 +104,7 @@ func (n *Network) getNetworkHeight() (uint64, error) {
 	for _, restURL := range n.conf.DataNodesREST {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
 		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
-			return GetStatistics(restURL)
+			return GetStatistics(n.restHTTPClient, restURL)
 		})
 
 		if err != nil {
@@ -133,7 +137,7 @@ func (n *Network) getChainID() (string, error) {
 	for _, restURL := range n.conf.DataNodesREST {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
 		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
-			return GetStatistics(restURL)
+			return GetStatistics(n.restHTTPClient, restURL)
 		})
 
 		if err != nil {
@@ -172,7 +176,7 @@ func (n *Network) getAppVersion() (string, error) {
 	for _, restURL := range healthyRESTEndpoints {
 		n.logger.Sugar().Infof("Fetching statistics from %s", restURL)
 		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
-			return GetStatistics(restURL)
+			return GetStatistics(n.restHTTPClient, restURL)
 		})
 
 		if err != nil {
@@ -204,7 +208,7 @@ func (n *Network) getHealthyRESTEndpoints() ([]string, error) {
 
 	healthyNodes := []string{}
 	for _, restURL := range n.conf.DataNodesREST {
-		if isRESTEndpointHealthy(n.logger, networkHeadHeight, restURL) {
+		if isRESTEndpointHealthy(n.restHTTPClient, n.logger, networkHeadHeight, restURL) {
 			healthyNodes = append(healthyNodes, restURL)
 		}
 	}
@@ -344,7 +348,7 @@ func (n *Network) getRestartSnapshot() (*Snapshot, error) {
 	for _, endpoint := range healthyRESTEndpoints {
 		n.logger.Sugar().Infof("Searching restart snapshot from REST api %s", endpoint)
 		response, err := tools.RetryReturn(3, 500*time.Millisecond, func() ([]Snapshot, error) {
-			return getSnapshots(endpoint)
+			return getSnapshots(n.restHTTPClient, endpoint)
 		})
 
 		if err != nil {
@@ -452,7 +456,7 @@ func (n *Network) getHealthyBootstrapPeers() ([]string, error) {
 	}
 
 	for _, peer := range n.conf.BootstrapPeers {
-		if !isRESTEndpointHealthy(n.logger, networkHeadHeight, peer.CoreREST) {
+		if !isRESTEndpointHealthy(n.restHTTPClient, n.logger, networkHeadHeight, peer.CoreREST) {
 			continue
 		}
 
@@ -471,7 +475,7 @@ func (n *Network) getHealthyBootstrapPeers() ([]string, error) {
 	return result, nil
 }
 
-func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
+func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds, externalAddress string) error {
 	if err := n.downloadVegaBinary(); err != nil {
 		return fmt.Errorf("failed to download vega binary: %w", err)
 	}
@@ -563,6 +567,7 @@ func (n *Network) SetupLocalNode(psqlCreds config.PostgreSQLCreds) error {
 		rpcPeers,
 		n.conf.Seeds,
 		*restartSnapshot,
+		externalAddress,
 	); err != nil {
 		return fmt.Errorf("failed to update tendermint config: %w", err)
 	}

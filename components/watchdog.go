@@ -170,6 +170,8 @@ func (w *watchdog) Healthy() (bool, error) {
 // fields values in the w.status fields based on the responses from local node and rest of the
 // networks. Then the status field is later parsed to get the overall status fields
 func (w *watchdog) Start(ctx context.Context) error {
+	restClient := networkutils.DefaultRESTClient()
+
 	w.status.started = time.Now()
 
 	watcherCtx, cancel := context.WithCancel(ctx)
@@ -187,13 +189,13 @@ func (w *watchdog) Start(ctx context.Context) error {
 			return nil
 		}
 
-		networkStatistics, err := networkutils.GetLatestStatistics(w.restEndpoints)
+		networkStatistics, err := networkutils.GetLatestStatistics(restClient, w.restEndpoints)
 		if err != nil {
 			w.logger.Sugar().Infof("Could not get valid response from any available REST endpoints: %v", w.restEndpoints)
 			continue
 		}
 
-		nodeStatistics, err := networkutils.GetLatestStatistics([]string{"http://localhost:3008"})
+		nodeStatistics, err := networkutils.GetLatestStatistics(restClient, []string{"http://localhost:3008"})
 		if err != nil {
 			w.status.PushEvent("Node unhealthy")
 			w.logger.Sugar().Info("Could not get valid response from local node(http://localhost:3008)")
