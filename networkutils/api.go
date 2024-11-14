@@ -1,6 +1,7 @@
 package networkutils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -34,10 +35,17 @@ type Statistics struct {
 	AppVersion string
 }
 
-func GetStatistics(restURL string) (*Statistics, error) {
+func GetStatistics(httpClient *http.Client, restURL string) (*Statistics, error) {
 	statisticsURL := fmt.Sprintf("%s/statistics", strings.TrimRight(restURL, "/"))
 
-	resp, err := http.Get(statisticsURL)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, statisticsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request statistics request: %w", err)
+	}
+
+	resp, err := httpClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send get query to the statistics endpoint: %w", err)
 	}
@@ -89,7 +97,7 @@ func GetStatistics(restURL string) (*Statistics, error) {
 	return result, nil
 }
 
-func GetLatestStatistics(restEndpoints []string) (*Statistics, error) {
+func GetLatestStatistics(httpClient *http.Client, restEndpoints []string) (*Statistics, error) {
 	if len(restEndpoints) < 1 {
 		return nil, fmt.Errorf("no rest endpoint passed")
 	}
@@ -98,7 +106,7 @@ func GetLatestStatistics(restEndpoints []string) (*Statistics, error) {
 
 	for _, endpoint := range restEndpoints {
 		statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
-			return GetStatistics(endpoint)
+			return GetStatistics(httpClient, endpoint)
 		})
 
 		if err != nil {
@@ -144,10 +152,18 @@ func (s Snapshot) Clone() Snapshot {
 	}
 }
 
-func getSnapshots(restURL string) ([]Snapshot, error) {
+func getSnapshots(httpClient *http.Client, restURL string) ([]Snapshot, error) {
 	snapshotsURL := fmt.Sprintf("%s/api/v2/snapshots", strings.TrimRight(restURL, "/"))
 
-	resp, err := http.Get(snapshotsURL)
+	ctx, cancel := context.WithTimeout(context.Background(), RequestTimeout)
+	defer cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, snapshotsURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request snapshots request: %w", err)
+	}
+
+	resp, err := httpClient.Do(request)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to send get query to the statistics endpoint: %w", err)
 	}
@@ -181,10 +197,10 @@ func getSnapshots(restURL string) ([]Snapshot, error) {
 	return response, nil
 }
 
-func isRESTEndpointHealthy(logger *zap.Logger, networkHeadHeight uint64, restURL string) bool {
+func isRESTEndpointHealthy(httpClient *http.Client, logger *zap.Logger, networkHeadHeight uint64, restURL string) bool {
 	logger.Sugar().Infof("Fetching statistics from %s", restURL)
 	statistics, err := tools.RetryReturn(3, 500*time.Millisecond, func() (*Statistics, error) {
-		return GetStatistics(restURL)
+		return GetStatistics(httpClient, restURL)
 	})
 
 	if err != nil {
@@ -219,7 +235,8 @@ func isRESTEndpointHealthy(logger *zap.Logger, networkHeadHeight uint64, restURL
 	}
 
 	// We do not check time diff here, because we want run test even if the network is not producing blocks.
-	// 		It can give us extra information
+	// It can give us extra information
+	//
 	// timeDiff := statistics.CurrentTime.Sub(statistics.VegaTime)
 	// if timeDiff > HealthyTimeThreshold {
 	// 	logger.Sugar().Infof(

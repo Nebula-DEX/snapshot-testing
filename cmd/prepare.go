@@ -44,7 +44,7 @@ func prepareNetwork(
 	postgreSQLCredentials config.PostgreSQLCreds,
 	externalAddress string,
 ) error {
-	network, err := networkutils.NewNetwork(logger, networkConfig, pathManager)
+	network, err := networkutils.NewNetwork(logger, networkConfig, pathManager, networkutils.DefaultRESTClient())
 	if err != nil {
 		return fmt.Errorf("failed to create network utils: %w", err)
 	}
